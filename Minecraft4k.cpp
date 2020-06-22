@@ -9,6 +9,86 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+// It's just the Java Random class
+class Random
+{
+    uint64_t seed = 0;
+
+    static uint64_t seedUniquifier;
+
+    constexpr static uint64_t multiplier = 0x5DEECE66D;
+    constexpr static uint64_t addend = 0xBL;
+    constexpr static uint64_t mask = (uint64_t(1) << 48) - 1;
+
+    static uint64_t initialScramble(const uint64_t seed)
+	{
+        return (seed ^ multiplier) & mask;
+    }
+
+	static uint64_t uniqueSeed()
+    {
+        // L'Ecuyer, "Tables of Linear Congruential Generators of
+        // Different Sizes and Good Lattice Structure", 1999
+        for (;;) {
+	        const uint64_t current = seedUniquifier;
+            const uint64_t next = current * 181783497276652981L;
+            if (seedUniquifier == current)
+            {
+                seedUniquifier = next;
+                return next;
+            }
+        }
+    }
+
+    int next(const int bits) const
+    {
+        uint64_t nextseed;
+        const uint64_t seed1 = seed;
+        do {
+            const uint64_t oldseed = seed1;
+            nextseed = (oldseed * multiplier + addend) & mask;
+            seedUniquifier = nextseed;
+        } while (seedUniquifier != nextseed);
+        return int(nextseed >> (48 - bits));
+    }
+	
+public:
+    Random(const long seed) : seed(uniqueSeed()) {}
+
+	Random() : seed(uniqueSeed() ^ uint64_t(glfwGetTime())) {}
+
+	float nextFloat() const
+	{
+        return next(24) / float(1 << 24);
+    }
+
+	int nextInt() const
+	{
+        return next(32);
+    }
+
+	int nextInt(const int bound) const
+    {
+        int r = next(31);
+        const int m = bound - 1;
+        if ((bound & m) == 0)  // i.e., bound is a power of 2
+            r = int(bound * uint64_t(r) >> 31);
+        else {
+            for (int u = r;
+                u - (r = u % bound) + m < 0;
+                u = next(31));
+        }
+        return r;
+    }
+
+	void setSeed(const uint64_t newSeed)
+    {
+        seed = initialScramble(newSeed);
+    }
+};
+
+uint64_t Random::seedUniquifier = 8682522807148012;
+
 constexpr bool classic = false;
 
 std::unordered_set<int> input = std::unordered_set<int>();
@@ -82,8 +162,8 @@ constexpr int PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB;
 
 float perlin[PERLIN_RES + 1];
 
-float scaled_cosine(float i) {
-    return (float)(0.5f * (1.0f - cos(i * PI)));
+float scaled_cosine(const float i) {
+    return 0.5f * (1.0f - cos(i * PI));
 }
 
 float noise(float x, float y) { // stolen from Processing
@@ -150,13 +230,11 @@ float noise(float x, float y) { // stolen from Processing
     return r;
 }
 
-float playerX = WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f;
-float playerY = WORLD_HEIGHT + 1; // more y means more down
-float playerZ = playerX;
+glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
+							    WORLD_HEIGHT + 1, 
+							    WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
 
-float velocityX = 0.0f;
-float velocityY = 0.0f;
-float velocityZ = 0.0f;
+glm::vec3 velocity(0);
 
 // mouse movement stuff
 volatile bool hovered = false;
@@ -218,8 +296,8 @@ static glm::vec3 lerp(const glm::vec3& start, const glm::vec3& end, const float 
 
 void updateScreenResolution()
 {
-    SCR_RES_X = (int)(107 * pow(2, SCR_DETAIL));
-    SCR_RES_Y = (int)(60 * pow(2, SCR_DETAIL));
+    SCR_RES_X = 107 * pow(2, SCR_DETAIL);
+    SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
     // auto generated code - do not delete
     std::string title = "Minecraft4k";
@@ -282,7 +360,7 @@ void run(GLFWwindow* window) {
                     unsigned char block;
 
                     if (y > maxTerrainHeight + rand.nextInt(8))
-                        block = (unsigned char)(rand.nextInt(8) + 1);
+                        block = rand.nextInt(8) + 1;
                     else
                         block = BLOCK_AIR;
 
@@ -327,7 +405,7 @@ void run(GLFWwindow* window) {
                     int treeX = x + (rand.nextInt(4) - 2);
                     int treeZ = z + (rand.nextInt(4) - 2);
 
-                    constexpr int terrainHeight = round(maxTerrainHeight + noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
+                    int terrainHeight = round(maxTerrainHeight + noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
 
                     int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
 
@@ -339,17 +417,21 @@ void run(GLFWwindow* window) {
                     }
 
                     // foliage
-                    fillBox(BLOCK_LEAVES, treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2, treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3, false);
+                    fillBox(BLOCK_LEAVES, 
+                        glm::vec3(treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2),
+                        glm::vec3(treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3), false);
 
                     // crown
-                    fillBox(BLOCK_LEAVES, treeX - 1, terrainHeight - treeHeight - 1, treeZ - 1, treeX + 2, terrainHeight - treeHeight + 1, treeZ + 2, false);
+                    fillBox(BLOCK_LEAVES,
+                        glm::vec3(treeX - 1, terrainHeight - treeHeight - 1, treeZ - 1),
+                        glm::vec3(treeX + 2, terrainHeight - treeHeight + 1, treeZ + 2), false);
 
 
-                    int foliageXList[2] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
-                    int foliageZList[2] = { treeZ - 2, treeZ + 2, treeZ + 2, treeZ - 2 };
+                    int foliageXList[] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
+                    int foliageZList[] = { treeZ - 2, treeZ + 2, treeZ + 2, treeZ - 2 };
 
-                    int crownXList[2] = { treeX - 1, treeX - 1, treeX + 1, treeX + 1 };
-                    int crownZList[2] = { treeZ - 1, treeZ + 1, treeZ + 1, treeZ - 1 };
+                    int crownXList[] = { treeX - 1, treeX - 1, treeX + 1, treeX + 1 };
+                    int crownZList[] = { treeZ - 1, treeZ + 1, treeZ + 1, treeZ - 1 };
 
                     for (int i = 0; i < 4; i++)
                     {
@@ -420,9 +502,9 @@ void run(GLFWwindow* window) {
                         tint = 0x7F7F7F; // grey
                         break;
                     case BLOCK_GRASS:
-                        if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (float)(TEXTURE_RES * 1.125f)) // grass + grass edge
+                        if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
                             tint = 0x6AAA40; // green
-                        else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (float)(TEXTURE_RES * 1.1875f)) // grass edge shadow
+                        else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
                             gsd_tempA = gsd_tempA * 2 / 3;
                         break;
                     case BLOCK_WOOD:
@@ -483,11 +565,11 @@ void run(GLFWwindow* window) {
 
                     tint = 0x966C4A; // brown (dirt)
 
-                    gsd_tempA = (int)((1 - pNoise * 0.5f) * 255);
+                    gsd_tempA = (1 - pNoise * 0.5f) * 255;
                     switch (blockType) {
                     case BLOCK_STONE:
                         tint = 0x7F7F7F; // grey
-                        gsd_tempA = (int)((0.75 + round(abs(noise(x * 0.5f, y * 2))) * 0.125f) * 255);
+                        gsd_tempA = (0.75 + round(abs(noise(x * 0.5f, y * 2))) * 0.125f) * 255;
                         break;
                     case BLOCK_GRASS:
                         if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
@@ -514,20 +596,21 @@ void run(GLFWwindow* window) {
                         double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
 
                         if (y < 16 || y > 32) { // top/bottom
-                            if (distFromCenter < TEXTURE_RES / 2) {
+                            if (distFromCenter < float(TEXTURE_RES) / 2.0f)
+                            {
                                 tint = 0xCCAA77; // light brown
 
-                                gsd_tempA = 196 - (int)rand.nextInt(32) + dx % 3 * 32;
+                                gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
                             }
                             else if (dx > dy) {
-                                gsd_tempA = (int)(noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100);
+                                gsd_tempA = noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                             }
                             else {
-                                gsd_tempA = (int)(noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100);
+                                gsd_tempA = noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                             }
                         }
                         else { // side texture
-                            gsd_tempA = (int)(noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100);
+                            gsd_tempA = noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                         }
                         break;
                     case BLOCK_BRICKS:
@@ -536,10 +619,11 @@ void run(GLFWwindow* window) {
                         float brickDX = abs(x % 8 - 4);
                         float brickDY = abs((y % 4) - 2) * 2;
 
-                        if (((int)y / 4) % 2 == 1)
+                        if ((y / 4) % 2 == 1)
                             brickDX = abs((x + 4) % 8 - 4);
 
-                        float d = (float)(sqrt(brickDX * brickDX + brickDY * brickDY) * .5f + std::max(brickDX, brickDY) * .5f);
+                        float d = sqrt(brickDX * brickDX + brickDY * brickDY) * .5f
+                    				+ std::max(brickDX, brickDY) * .5f;
 
                         if (d > 4) // gap between bricks
                             tint = 0xAAAAAA; // light grey
@@ -555,7 +639,7 @@ void run(GLFWwindow* window) {
                         float dx = abs(x % 4 - 2) * 2;
                         float dy = (y % 8) - 4;
 
-                        if (((int)y / 8) % 2 == 1)
+                        if ((y / 8) % 2 == 1)
                             dx = abs((x + 2) % 4 - 2) * 2;
 
                         dx += pNoise;
@@ -563,7 +647,7 @@ void run(GLFWwindow* window) {
                         float d = dx + abs(dy);
 
                         if (dy < 0)
-                            d = (float)sqrt(dx * dx + dy * dy);
+                            d = sqrt(dx * dx + dy * dy);
 
                         if (d < 3.5f)
                             tint = 0xFFCCDD;
@@ -600,15 +684,15 @@ void run(GLFWwindow* window) {
 	        std::cout << "DEBUG::BREAK\n";
         }
 
-        sinYaw = (float)sin(cameraYaw);
-        cosYaw = (float)cos(cameraYaw);
-        sinPitch = (float)sin(cameraPitch);
-        cosPitch = (float)cos(cameraPitch);
+        sinYaw = sin(cameraYaw);
+        cosYaw = cos(cameraYaw);
+        sinPitch = sin(cameraPitch);
+        cosPitch = cos(cameraPitch);
 
-        lightDirection.y = (float)sin(time / 10000.0);
+        lightDirection.y = sin(time / 10000.0);
 
         lightDirection.x = 0; //lightDirection.y * 0.5f;
-        lightDirection.z = (float)cos(time / 10000.0);
+        lightDirection.z = cos(time / 10000.0);
 
 
         if (lightDirection.y < 0.0f)
@@ -638,26 +722,28 @@ void run(GLFWwindow* window) {
             startTime += 10L;
             float inputX = (input.contains(KeyEvent.VK_D) - input.contains(KeyEvent.VK_A)) * 0.02F;
             float inputZ = (input.contains(KeyEvent.VK_W) - input.contains(KeyEvent.VK_S)) * 0.02F;
-            velocityX *= 0.5F;
-            velocityY *= 0.99F;
-            velocityZ *= 0.5F;
-            velocityX += sinYaw * inputZ + cosYaw * inputX;
-            velocityZ += cosYaw * inputZ - sinYaw * inputX;
-            velocityY += 0.003F;
+        	
+            velocity.x *= 0.5F;
+            velocity.y *= 0.99F;
+            velocity.z *= 0.5F;
+        	
+            velocity.x += sinYaw * inputZ + cosYaw * inputX;
+            velocity.z += cosYaw * inputZ - sinYaw * inputX;
+            velocity.y += 0.003F; // gravity
 
 
             //check for movement on each axis individually
 			OUTER:
             for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-                float newPlayerX = playerX + velocityX * ((axisIndex + AXIS_Y) % 3 / 2);
-                float newPlayerY = playerY + velocityY * ((axisIndex + AXIS_X) % 3 / 2);
-                float newPlayerZ = playerZ + velocityZ * ((axisIndex + AXIS_Z) % 3 / 2);
+                float newPlayerX = playerPos.x + velocity.x * ((axisIndex + AXIS_Y) % 3 / 2);
+                float newPlayerY = playerPos.y + velocity.y * ((axisIndex + AXIS_X) % 3 / 2);
+                float newPlayerZ = playerPos.z + velocity.z * ((axisIndex + AXIS_Z) % 3 / 2);
 
                 for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
                     // magic
-                    int colliderBlockX = (int)(newPlayerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-                    int colliderBlockY = (int)(newPlayerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-                    int colliderBlockZ = (int)(newPlayerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+                    int colliderBlockX = (newPlayerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+                    int colliderBlockY = (newPlayerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+                    int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
                     if (colliderBlockY < 0)
                         continue;
@@ -671,20 +757,20 @@ void run(GLFWwindow* window) {
                             continue OUTER; // movement is invalid
 
                         // if we're falling, colliding, and we press space
-                        if (input.contains(KeyEvent.VK_SPACE) == true && velocityY > 0.0F) {
-                            velocityY = -0.1F; // jump
+                        if (input.contains(KeyEvent.VK_SPACE) == true && velocity.y > 0.0F) {
+                            velocity.y = -0.1F; // jump
                             break OUTER;
                         }
 
                         // stop vertical movement
-                        velocityY = 0.0F;
+                        velocity.y = 0.0F;
                         break OUTER;
                     }
                 }
 
-                playerX = newPlayerX;
-                playerY = newPlayerY;
-                playerZ = newPlayerZ;
+                playerPos.x = newPlayerX;
+                playerPos.y = newPlayerY;
+                playerPos.z = newPlayerZ;
             }
         }
 
@@ -706,9 +792,9 @@ void run(GLFWwindow* window) {
         }
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-            int magicX = (int)(playerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-            int magicY = (int)(playerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-            int magicZ = (int)(playerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+            int magicX = (int)(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+            int magicY = (int)(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+            int magicZ = (int)(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
             // check if hovered block is within world boundaries
             if (magicX >= 0 && magicY >= 0 && magicZ >= 0 && magicX < WORLD_SIZE && magicY < WORLD_HEIGHT && magicZ < WORLD_SIZE)
