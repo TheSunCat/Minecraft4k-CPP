@@ -3,12 +3,12 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <unordered_set>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+constexpr float PI = 3.14159265359f;
 // It's just the Java Random class
 class Random
 {
@@ -86,41 +86,125 @@ public:
         seed = initialScramble(newSeed);
     }
 };
-
 uint64_t Random::seedUniquifier = 8682522807148012;
 
-constexpr bool classic = false;
+namespace Perlin
+{
+    constexpr int PERLIN_RES = 1024;
+	
+    constexpr float PERLIN_OCTAVES = 4; // default to medium smooth
+    constexpr float PERLIN_AMP_FALLOFF = 0.5f; // 50% reduction/octave
 
-std::unordered_set<int> input = std::unordered_set<int>();
+    constexpr int PERLIN_YWRAPB = 4;
+    constexpr int PERLIN_YWRAP = 1 << PERLIN_YWRAPB;
+    constexpr int PERLIN_ZWRAPB = 8;
+    constexpr int PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB;
 
-glm::vec2 mouseDelta;
+    float perlin[PERLIN_RES + 1];
 
-volatile bool needsResUpdate = true;
+    float scaled_cosine(const float i) {
+        return 0.5f * (1.0f - cos(i * PI));
+    }
 
-constexpr float PI = 3.14159265359f;
+    float noise(float x, float y) { // stolen from Processing
+        if (perlin[0] == 0) {
+            Random r = Random(18295169L);
 
-constexpr int MOUSE_RIGHT = 0;
-constexpr int MOUSE_LEFT = 1;
+            for (int i = 0; i < PERLIN_RES + 1; i++)
+                perlin[i] = r.nextFloat();
+        }
+
+        if (x < 0)
+            x = -x;
+        if (y < 0)
+            y = -y;
+
+        int xi = int(x);
+        int yi = int(y);
+
+        float xf = x - xi;
+        float yf = y - yi;
+
+        float r = 0;
+        float ampl = 0.5f;
+
+        for (int i = 0; i < PERLIN_OCTAVES; i++) {
+            int of = xi + (yi << PERLIN_YWRAPB);
+
+            const float rxf = scaled_cosine(xf);
+            const float ryf = scaled_cosine(yf);
+
+            float n1 = perlin[of % PERLIN_RES];
+            n1 += rxf * (perlin[(of + 1) % PERLIN_RES] - n1);
+            float n2 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
+            n2 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n2);
+            n1 += ryf * (n2 - n1);
+
+            of += PERLIN_ZWRAP;
+            n2 = perlin[of % PERLIN_RES];
+            n2 += rxf * (perlin[(of + 1) % PERLIN_RES] - n2);
+            float n3 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
+            n3 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n3);
+            n2 += ryf * (n3 - n2);
+
+            n1 += scaled_cosine(0) * (n2 - n1);
+
+            r += n1 * ampl;
+            ampl *= PERLIN_AMP_FALLOFF;
+            xi <<= 1;
+            xf *= 2;
+            yi <<= 1;
+            yf *= 2;
+
+            if (xf >= 1.0) {
+                xi++;
+                xf--;
+            }
+
+            if (yf >= 1.0) {
+                yi++;
+                yf--;
+            }
+        }
+
+        return r;
+    }
+}
+
+
+struct Controller
+{
+    float forward;
+    float right;
+
+    bool jump;
+
+    glm::vec2 lastMousePos;
+
+    bool firstMouse = true;
+};
+
+constexpr bool CLASSIC = false;
+
+Controller controller{};
+
+bool needsResUpdate = true;
 
 int SCR_DETAIL = 1;
 
 int SCR_RES_X = 107 * pow(2, SCR_DETAIL);
 int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
-constexpr float RENDER_DIST = classic ? 20.0f : 80.0f;
-constexpr float PLAYER_REACH = 5.0f;
-
 constexpr int WINDOW_WIDTH = 856;
 constexpr int WINDOW_HEIGHT = 480;
+
+constexpr float RENDER_DIST = CLASSIC ? 20.0f : 80.0f;
+constexpr float PLAYER_REACH = 5.0f;
 
 constexpr int TEXTURE_RES = 16;
 
 constexpr int WORLD_SIZE = 64;
 constexpr int WORLD_HEIGHT = 64;
-
-constexpr int AXIS_X = 0;
-constexpr int AXIS_Y = 1;
-constexpr int AXIS_Z = 2;
 
 constexpr unsigned char BLOCK_AIR = 0;
 constexpr unsigned char BLOCK_GRASS = 1;
@@ -129,8 +213,6 @@ constexpr unsigned char BLOCK_STONE = 4;
 constexpr unsigned char BLOCK_BRICKS = 5;
 constexpr unsigned char BLOCK_WOOD = 7;
 constexpr unsigned char BLOCK_LEAVES = 8;
-
-constexpr int PERLIN_RES = 1024;
 
 constexpr int CROSS_SIZE = 32;
 
@@ -152,104 +234,15 @@ constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
 
 long deltaTime = 0;
 
-constexpr float PERLIN_OCTAVES = 4; // default to medium smooth
-constexpr float PERLIN_AMP_FALLOFF = 0.5f; // 50% reduction/octave
-
-constexpr int PERLIN_YWRAPB = 4;
-constexpr int PERLIN_YWRAP = 1 << PERLIN_YWRAPB;
-constexpr int PERLIN_ZWRAPB = 8;
-constexpr int PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB;
-
-float perlin[PERLIN_RES + 1];
-
-float scaled_cosine(const float i) {
-    return 0.5f * (1.0f - cos(i * PI));
-}
-
-float noise(float x, float y) { // stolen from Processing
-    if (perlin[0] == 0) {
-        Random r = Random(18295169L);
-    	
-        for (int i = 0; i < PERLIN_RES + 1; i++)
-            perlin[i] = r.nextFloat();
-    }
-
-    if (x < 0)
-        x = -x;
-    if (y < 0)
-        y = -y;
-
-    int xi = int(x);
-    int yi = int(y);
-
-    float xf = x - xi;
-    float yf = y - yi;
-
-    float r = 0;
-    float ampl = 0.5f;
-
-    for (int i = 0; i < PERLIN_OCTAVES; i++) {
-        int of = xi + (yi << PERLIN_YWRAPB);
-
-        float rxf = scaled_cosine(xf);
-        float ryf = scaled_cosine(yf);
-
-        float n1 = perlin[of % PERLIN_RES];
-        n1 += rxf * (perlin[(of + 1) % PERLIN_RES] - n1);
-        float n2 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
-        n2 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n2);
-        n1 += ryf * (n2 - n1);
-
-        of += PERLIN_ZWRAP;
-        n2 = perlin[of % PERLIN_RES];
-        n2 += rxf * (perlin[(of + 1) % PERLIN_RES] - n2);
-        float n3 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
-        n3 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n3);
-        n2 += ryf * (n3 - n2);
-
-        n1 += scaled_cosine(0) * (n2 - n1);
-
-        r += n1 * ampl;
-        ampl *= PERLIN_AMP_FALLOFF;
-        xi <<= 1;
-        xf *= 2;
-        yi <<= 1;
-        yf *= 2;
-
-        if (xf >= 1.0) {
-            xi++;
-            xf--;
-        }
-
-        if (yf >= 1.0) {
-            yi++;
-            yf--;
-        }
-    }
-
-    return r;
-}
-
 glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
 							    WORLD_HEIGHT + 1, 
 							    WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
+glm::vec3 playerVelocity;
 
-glm::vec3 velocity(0);
+glm::vec3 hoveredBlockPos;
+glm::vec3 placeBlockPos;
 
-// mouse movement stuff
-volatile bool hovered = false;
-
-volatile int hoveredBlockPosX = -1;
-volatile int hoveredBlockPosY = -1;
-volatile int hoveredBlockPosZ = -1;
-
-volatile int placeBlockPosX = -1;
-volatile int placeBlockPosY = -1;
-volatile int placeBlockPosZ = -1;
-
-volatile int newHoverBlockPosX = -1;
-volatile int newHoverBlockPosY = -1;
-volatile int newHoverBlockPosZ = -1;
+glm::vec3 newHoverBlockPos;
 
 glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
@@ -260,9 +253,9 @@ float FOV = 90.0f;
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
 
-glm::vec3 sunColor = glm::vec3();
-glm::vec3 ambColor = glm::vec3();
-glm::vec3 skyColor = glm::vec3();
+glm::vec3 sunColor;
+glm::vec3 ambColor;
+glm::vec3 skyColor;
 
 unsigned char world[WORLD_SIZE][WORLD_HEIGHT][WORLD_SIZE];
 
@@ -335,7 +328,7 @@ void updateScreenResolution()
         break;
     }
 
-    //frame.setTitle(title);
+    //TODO frame.setTitle(title);
 }
 
 void run(GLFWwindow* window) {
@@ -353,7 +346,7 @@ void run(GLFWwindow* window) {
     // generate world
 
     float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
-    if (classic) {
+    if (CLASSIC) {
         for (int x = WORLD_SIZE; x >= 0; x--) {
             for (int y = 0; y < WORLD_HEIGHT; y++) {
                 for (int z = 0; z < WORLD_SIZE; z++) {
@@ -379,7 +372,7 @@ void run(GLFWwindow* window) {
 
         for (int x = 0; x < WORLD_SIZE; x++) {
             for (int z = 0; z < WORLD_SIZE; z++) {
-                int terrainHeight = round(maxTerrainHeight + noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
+                int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
 
                 for (int y = terrainHeight; y < WORLD_HEIGHT; y++)
                 {
@@ -405,7 +398,7 @@ void run(GLFWwindow* window) {
                     int treeX = x + (rand.nextInt(4) - 2);
                     int treeZ = z + (rand.nextInt(4) - 2);
 
-                    int terrainHeight = round(maxTerrainHeight + noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
+                    int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
 
                     int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
 
@@ -479,6 +472,9 @@ void run(GLFWwindow* window) {
     // set random seed to generate textures
     rand.setSeed(151910774187927L);
 
+	// TODO upload this to GL
+    int textureAtlas[TEXTURE_RES * TEXTURE_RES * 3 * 16];
+	
     // procedurally generates the 16x3 textureAtlas
     // gsd = grayscale detail
     for (int blockType = 1; blockType < 16; blockType++) {
@@ -491,7 +487,7 @@ void run(GLFWwindow* window) {
                 int gsd_constexpr;
                 int tint;
 
-                if (classic) {
+                if (CLASSIC) {
                     if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
                         gsd_tempA = 0xFF - rand.nextInt(0x60);
 
@@ -561,7 +557,7 @@ void run(GLFWwindow* window) {
                     }
                 }
                 else {
-                    float pNoise = noise(x, y);
+                    float pNoise = Perlin::noise(x, y);
 
                     tint = 0x966C4A; // brown (dirt)
 
@@ -569,7 +565,7 @@ void run(GLFWwindow* window) {
                     switch (blockType) {
                     case BLOCK_STONE:
                         tint = 0x7F7F7F; // grey
-                        gsd_tempA = (0.75 + round(abs(noise(x * 0.5f, y * 2))) * 0.125f) * 255;
+                        gsd_tempA = (0.75 + round(abs(Perlin::noise(x * 0.5f, y * 2))) * 0.125f) * 255;
                         break;
                     case BLOCK_GRASS:
                         if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
@@ -603,14 +599,14 @@ void run(GLFWwindow* window) {
                                 gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
                             }
                             else if (dx > dy) {
-                                gsd_tempA = noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                                gsd_tempA = Perlin::noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                             }
                             else {
-                                gsd_tempA = noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                                gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                             }
                         }
                         else { // side texture
-                            gsd_tempA = noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                            gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                         }
                         break;
                     case BLOCK_BRICKS:
@@ -678,11 +674,7 @@ void run(GLFWwindow* window) {
             needsResUpdate = false;
             updateScreenResolution();
         }
-
-        if (input.contains(KeyEvent.VK_Q))
-        {
-	        std::cout << "DEBUG::BREAK\n";
-        }
+    	
 
         sinYaw = sin(cameraYaw);
         cosYaw = cos(cameraYaw);
@@ -708,42 +700,31 @@ void run(GLFWwindow* window) {
         }
 
         while (glfwGetTime() - startTime > 10L) {
-            // adjust camera
-            cameraYaw += mouseDelta.x / 400.0F;
-            cameraPitch -= mouseDelta.y / 400.0F;
-
-            if (cameraPitch < -1.57F)
-                cameraPitch = -1.57F;
-
-            if (cameraPitch > 1.57F)
-                cameraPitch = 1.57F;
-
 
             startTime += 10L;
-            float inputX = (input.contains(KeyEvent.VK_D) - input.contains(KeyEvent.VK_A)) * 0.02F;
-            float inputZ = (input.contains(KeyEvent.VK_W) - input.contains(KeyEvent.VK_S)) * 0.02F;
+            float inputX = controller.right * 0.02F;
+            float inputZ = controller.forward * 0.02F;
         	
-            velocity.x *= 0.5F;
-            velocity.y *= 0.99F;
-            velocity.z *= 0.5F;
+            playerVelocity.x *= 0.5F;
+            playerVelocity.y *= 0.99F;
+            playerVelocity.z *= 0.5F;
         	
-            velocity.x += sinYaw * inputZ + cosYaw * inputX;
-            velocity.z += cosYaw * inputZ - sinYaw * inputX;
-            velocity.y += 0.003F; // gravity
+            playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
+            playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
+            playerVelocity.y += 0.003F; // gravity
 
 
             //check for movement on each axis individually
-			OUTER:
             for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-                float newPlayerX = playerPos.x + velocity.x * ((axisIndex + AXIS_Y) % 3 / 2);
-                float newPlayerY = playerPos.y + velocity.y * ((axisIndex + AXIS_X) % 3 / 2);
-                float newPlayerZ = playerPos.z + velocity.z * ((axisIndex + AXIS_Z) % 3 / 2);
+                float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
+                float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
+                float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
 
                 for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
                     // magic
-                    int colliderBlockX = (newPlayerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-                    int colliderBlockY = (newPlayerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-                    int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+                    int colliderBlockX = (newPlayerX + (colliderIndex         & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
+                    int colliderBlockY = (newPlayerY + ((colliderIndex >> 2)  - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+                    int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1    & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
 
                     if (colliderBlockY < 0)
                         continue;
@@ -753,17 +734,17 @@ void run(GLFWwindow* window) {
                         || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
                         || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
 
-                        if (axisIndex != AXIS_Z) // not checking for vertical movement
+                        if (axisIndex != 2) // not checking for vertical movement
                             continue OUTER; // movement is invalid
 
                         // if we're falling, colliding, and we press space
-                        if (input.contains(KeyEvent.VK_SPACE) == true && velocity.y > 0.0F) {
-                            velocity.y = -0.1F; // jump
+                        if (controller.jump && playerVelocity.y > 0.0F) {
+                            playerVelocity.y = -0.1F; // jump
                             break OUTER;
                         }
 
                         // stop vertical movement
-                        velocity.y = 0.0F;
+                        playerVelocity.y = 0.0F;
                         break OUTER;
                     }
                 }
@@ -774,53 +755,55 @@ void run(GLFWwindow* window) {
             }
         }
 
-        if (hoveredBlockPosX > -1) { // all axes will be -1 if nothing hovered
-            // break block
-            if (input.contains(MOUSE_LEFT) == true) {
-                world[hoveredBlockPosX][hoveredBlockPosY][hoveredBlockPosZ] = BLOCK_AIR;
-                input.remove(MOUSE_LEFT);
-            }
-
-
-            if (placeBlockPosY > 0) {
-                // place block
-                if (input.contains(MOUSE_RIGHT)) {
-                    world[placeBlockPosX][placeBlockPosY][placeBlockPosZ] = hotbar[heldBlockIndex];
-                    input.remove(MOUSE_RIGHT);
-                }
-            }
-        }
-
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-            int magicX = (int)(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-            int magicY = (int)(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-            int magicZ = (int)(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+            int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+            int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+            int magicZ = int(playerPos.z + ( colliderIndex >> 1  & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
             // check if hovered block is within world boundaries
             if (magicX >= 0 && magicY >= 0 && magicZ >= 0 && magicX < WORLD_SIZE && magicY < WORLD_HEIGHT && magicZ < WORLD_SIZE)
                 world[magicX][magicY][magicZ] = BLOCK_AIR;
         }
 
-        // render the screen
-        newHoverBlockPosX = -1;
-        newHoverBlockPosY = -1;
-        newHoverBlockPosZ = -1;
-
-    	// RENDER AAA
-
-        hoveredBlockPosX = newHoverBlockPosX;
-        hoveredBlockPosY = newHoverBlockPosY;
-        hoveredBlockPosZ = newHoverBlockPosZ;
-
-        placeBlockPosX += hoveredBlockPosX;
-        placeBlockPosY += hoveredBlockPosY;
-        placeBlockPosZ += hoveredBlockPosZ;
+        // TODO render the screen
 
         deltaTime = glfwGetTime() - time;
 
-    	
+    	// not sure if we need this bc rendering on GPU
         if (deltaTime < 16)
-            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(16 - deltaTime));
+    }
+}
+
+void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
+{
+    const auto xPos = float(xPosD);
+    const auto yPos = float(yPosD);
+
+    if (controller.firstMouse) {
+        controller.lastMousePos.x = xPos;
+        controller.lastMousePos.y = yPos;
+        controller.firstMouse = false;
+        return; // nothing to calculate because we technically didn't move the mouse
+    }
+
+    const float xOffset = xPos - controller.lastMousePos.x;
+    const float yOffset = controller.lastMousePos.y - yPos;
+
+    controller.lastMousePos.x = xPos;
+    controller.lastMousePos.y = yPos;
+
+    //TODO rotateCameraBy(xOffset, yOffset)
+}
+
+void key_callback(GLFWwindow*, const int key, const int scancode, const int action, const int mods)
+{
+    if(action == GLFW_PRESS)
+    {
+	    std::cout << "press\n";
+    } else // action == GLFW_RELEASE
+    {
+	    std::cout << "release\n";
     }
 }
 
@@ -835,6 +818,13 @@ int main(int argc, char** argv)
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // add on Mac bc Apple is big dumb :(
+#endif
+	
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Minecraft4k", nullptr, nullptr);
     if (!window)
     {
@@ -844,6 +834,11 @@ int main(int argc, char** argv)
     }
     glfwMakeContextCurrent(window);
 
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // turn on VSync so we don't run at about a kjghpillion fps
+    glfwSwapInterval(1);
+
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
         std::cout << "Failed to initialize GLAD!\n" << std::endl;
@@ -851,6 +846,9 @@ int main(int argc, char** argv)
     }
 
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     run(window);
 }
