@@ -8,168 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-constexpr float PI = 3.14159265359f;
-// It's just the Java Random class
-class Random
-{
-    uint64_t seed = 0;
-
-    static uint64_t seedUniquifier;
-
-    constexpr static uint64_t multiplier = 0x5DEECE66D;
-    constexpr static uint64_t addend = 0xBL;
-    constexpr static uint64_t mask = (uint64_t(1) << 48) - 1;
-
-    static uint64_t initialScramble(const uint64_t seed)
-	{
-        return (seed ^ multiplier) & mask;
-    }
-
-	static uint64_t uniqueSeed()
-    {
-        // L'Ecuyer, "Tables of Linear Congruential Generators of
-        // Different Sizes and Good Lattice Structure", 1999
-        for (;;) {
-	        const uint64_t current = seedUniquifier;
-            const uint64_t next = current * 181783497276652981L;
-            if (seedUniquifier == current)
-            {
-                seedUniquifier = next;
-                return next;
-            }
-        }
-    }
-
-    int next(const int bits) const
-    {
-        uint64_t nextseed;
-        const uint64_t seed1 = seed;
-        do {
-            const uint64_t oldseed = seed1;
-            nextseed = (oldseed * multiplier + addend) & mask;
-            seedUniquifier = nextseed;
-        } while (seedUniquifier != nextseed);
-        return int(nextseed >> (48 - bits));
-    }
-	
-public:
-    Random(const long seed) : seed(uniqueSeed()) {}
-
-	Random() : seed(uniqueSeed() ^ uint64_t(glfwGetTime())) {}
-
-	float nextFloat() const
-	{
-        return next(24) / float(1 << 24);
-    }
-
-	int nextInt() const
-	{
-        return next(32);
-    }
-
-	int nextInt(const int bound) const
-    {
-        int r = next(31);
-        const int m = bound - 1;
-        if ((bound & m) == 0)  // i.e., bound is a power of 2
-            r = int(bound * uint64_t(r) >> 31);
-        else {
-            for (int u = r;
-                u - (r = u % bound) + m < 0;
-                u = next(31));
-        }
-        return r;
-    }
-
-	void setSeed(const uint64_t newSeed)
-    {
-        seed = initialScramble(newSeed);
-    }
-};
-uint64_t Random::seedUniquifier = 8682522807148012;
-
-namespace Perlin
-{
-    constexpr int PERLIN_RES = 1024;
-	
-    constexpr float PERLIN_OCTAVES = 4; // default to medium smooth
-    constexpr float PERLIN_AMP_FALLOFF = 0.5f; // 50% reduction/octave
-
-    constexpr int PERLIN_YWRAPB = 4;
-    constexpr int PERLIN_YWRAP = 1 << PERLIN_YWRAPB;
-    constexpr int PERLIN_ZWRAPB = 8;
-    constexpr int PERLIN_ZWRAP = 1 << PERLIN_ZWRAPB;
-
-    float perlin[PERLIN_RES + 1];
-
-    float scaled_cosine(const float i) {
-        return 0.5f * (1.0f - cos(i * PI));
-    }
-
-    float noise(float x, float y) { // stolen from Processing
-        if (perlin[0] == 0) {
-            Random r = Random(18295169L);
-
-            for (int i = 0; i < PERLIN_RES + 1; i++)
-                perlin[i] = r.nextFloat();
-        }
-
-        if (x < 0)
-            x = -x;
-        if (y < 0)
-            y = -y;
-
-        int xi = int(x);
-        int yi = int(y);
-
-        float xf = x - xi;
-        float yf = y - yi;
-
-        float r = 0;
-        float ampl = 0.5f;
-
-        for (int i = 0; i < PERLIN_OCTAVES; i++) {
-            int of = xi + (yi << PERLIN_YWRAPB);
-
-            const float rxf = scaled_cosine(xf);
-            const float ryf = scaled_cosine(yf);
-
-            float n1 = perlin[of % PERLIN_RES];
-            n1 += rxf * (perlin[(of + 1) % PERLIN_RES] - n1);
-            float n2 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
-            n2 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n2);
-            n1 += ryf * (n2 - n1);
-
-            of += PERLIN_ZWRAP;
-            n2 = perlin[of % PERLIN_RES];
-            n2 += rxf * (perlin[(of + 1) % PERLIN_RES] - n2);
-            float n3 = perlin[(of + PERLIN_YWRAP) % PERLIN_RES];
-            n3 += rxf * (perlin[(of + PERLIN_YWRAP + 1) % PERLIN_RES] - n3);
-            n2 += ryf * (n3 - n2);
-
-            n1 += scaled_cosine(0) * (n2 - n1);
-
-            r += n1 * ampl;
-            ampl *= PERLIN_AMP_FALLOFF;
-            xi <<= 1;
-            xf *= 2;
-            yi <<= 1;
-            yf *= 2;
-
-            if (xf >= 1.0) {
-                xi++;
-                xf--;
-            }
-
-            if (yf >= 1.0) {
-                yi++;
-                yf--;
-            }
-        }
-
-        return r;
-    }
-}
+#include "Util.h"
 
 
 struct Controller
@@ -214,8 +53,6 @@ constexpr unsigned char BLOCK_BRICKS = 5;
 constexpr unsigned char BLOCK_WOOD = 7;
 constexpr unsigned char BLOCK_LEAVES = 8;
 
-constexpr int CROSS_SIZE = 32;
-
 // COLORS
 constexpr glm::vec3 FOG_COLOR = glm::vec3(1);
 
@@ -235,8 +72,8 @@ constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
 long deltaTime = 0;
 
 glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
-							    WORLD_HEIGHT + 1, 
-							    WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
+                                WORLD_HEIGHT + 1, 
+                                WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
 glm::vec3 playerVelocity;
 
 glm::vec3 hoveredBlockPos;
@@ -332,15 +169,6 @@ void updateScreenResolution()
 }
 
 void run(GLFWwindow* window) {
-    while (!glfwWindowShouldClose(window))
-    {
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    glfwTerminate();
-    return;
-	
     Random rand = Random(18295169L);
 
     // generate world
@@ -472,9 +300,9 @@ void run(GLFWwindow* window) {
     // set random seed to generate textures
     rand.setSeed(151910774187927L);
 
-	// TODO upload this to GL
+    // TODO upload this to GL
     int textureAtlas[TEXTURE_RES * TEXTURE_RES * 3 * 16];
-	
+    
     // procedurally generates the 16x3 textureAtlas
     // gsd = grayscale detail
     for (int blockType = 1; blockType < 16; blockType++) {
@@ -495,15 +323,20 @@ void run(GLFWwindow* window) {
                     switch (blockType)
                     {
                     case BLOCK_STONE:
+                    {
                         tint = 0x7F7F7F; // grey
                         break;
+                    }
                     case BLOCK_GRASS:
+                    {
                         if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
                             tint = 0x6AAA40; // green
                         else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
                             gsd_tempA = gsd_tempA * 2 / 3;
                         break;
+                    }
                     case BLOCK_WOOD:
+                    {
                         tint = 0x675231; // brown (bark)
                         if (!(y >= TEXTURE_RES && y < TEXTURE_RES * 2) && // second row = stripes
                             x > 0 && x < TEXTURE_RES - 1 &&
@@ -537,11 +370,14 @@ void run(GLFWwindow* window) {
                             gsd_tempA = gsd_tempA * (150 - (x & 1) * 100) / 100;
                         }
                         break;
+                    }
                     case BLOCK_BRICKS:
+                    {
                         tint = 0xB53A15; // red
                         if ((x + y / 4 * 4) % 8 == 0 || y % 4 == 0) // gap between bricks
                             tint = 0xBCAFA5; // reddish light grey
                         break;
+                    }
                     }
 
                     gsd_constexpr = gsd_tempA;
@@ -564,16 +400,21 @@ void run(GLFWwindow* window) {
                     gsd_tempA = (1 - pNoise * 0.5f) * 255;
                     switch (blockType) {
                     case BLOCK_STONE:
+                    {
                         tint = 0x7F7F7F; // grey
                         gsd_tempA = (0.75 + round(abs(Perlin::noise(x * 0.5f, y * 2))) * 0.125f) * 255;
                         break;
+                    }
                     case BLOCK_GRASS:
+                    {
                         if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
                             tint = 0x7AFF40; //green
                         else if (y < (((x * x * 3 + x * 81) / 2) % 4) + 19)
                             gsd_tempA = gsd_tempA * 1 / 3;
                         break;
+                    }
                     case BLOCK_WOOD:
+                    {
                         tint = 0x776644; // brown (bark)
 
                         int woodCenter = TEXTURE_RES / 2 - 1;
@@ -609,7 +450,9 @@ void run(GLFWwindow* window) {
                             gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
                         }
                         break;
+                    }
                     case BLOCK_BRICKS:
+                    {
                         tint = 0x444444; // red
 
                         float brickDX = abs(x % 8 - 4);
@@ -619,11 +462,12 @@ void run(GLFWwindow* window) {
                             brickDX = abs((x + 4) % 8 - 4);
 
                         float d = sqrt(brickDX * brickDX + brickDY * brickDY) * .5f
-                    				+ std::max(brickDX, brickDY) * .5f;
+                            + std::max(brickDX, brickDY) * .5f;
 
                         if (d > 4) // gap between bricks
                             tint = 0xAAAAAA; // light grey
                         break;
+                    }
                     }
 
                     gsd_constexpr = gsd_tempA;
@@ -666,15 +510,14 @@ void run(GLFWwindow* window) {
 
     long startTime = glfwGetTime();
 
-
-    while (true) {
+    while (!glfwWindowShouldClose(window)) {
         long time = glfwGetTime();
 
         if (needsResUpdate) {
             needsResUpdate = false;
             updateScreenResolution();
         }
-    	
+        
 
         sinYaw = sin(cameraYaw);
         cosYaw = cos(cameraYaw);
@@ -698,61 +541,58 @@ void run(GLFWwindow* window) {
             ambColor = lerp(AC_TWILIGHT, AC_NIGHT, lightDirection.y);
             skyColor = lerp(YC_TWILIGHT, YC_NIGHT, lightDirection.y);
         }
-
-        while (glfwGetTime() - startTime > 10L) {
-
-            startTime += 10L;
-            float inputX = controller.right * 0.02F;
-            float inputZ = controller.forward * 0.02F;
-        	
-            playerVelocity.x *= 0.5F;
-            playerVelocity.y *= 0.99F;
-            playerVelocity.z *= 0.5F;
-        	
-            playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
-            playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
-            playerVelocity.y += 0.003F; // gravity
+        
+            
+        float inputX = controller.right * 0.02F;
+        float inputZ = controller.forward * 0.02F;
+        
+        playerVelocity.x *= 0.5F;
+        playerVelocity.y *= 0.99F;
+        playerVelocity.z *= 0.5F;
+        
+        playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
+        playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
+        playerVelocity.y += 0.003F; // gravity
 
 
-            //check for movement on each axis individually
-            for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-                float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
-                float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
-                float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
+        //check for movement on each axis individually
+        for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
+            float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
+            float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
+            float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
 
-                for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-                    // magic
-                    int colliderBlockX = (newPlayerX + (colliderIndex         & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
-                    int colliderBlockY = (newPlayerY + ((colliderIndex >> 2)  - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-                    int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1    & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
+            for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
+                // magic
+                int colliderBlockX = (newPlayerX + (colliderIndex         & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
+                int colliderBlockY = (newPlayerY + ((colliderIndex >> 2)  - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+                int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1    & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
 
-                    if (colliderBlockY < 0)
-                        continue;
+                if (colliderBlockY < 0)
+                    continue;
 
-                    // check collision with world bounds and world blocks
-                    if (colliderBlockX < 0 || colliderBlockZ < 0
-                        || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
-                        || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
+                // check collision with world bounds and world blocks
+                if (colliderBlockX < 0 || colliderBlockZ < 0
+                    || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
+                    || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
 
-                        if (axisIndex != 2) // not checking for vertical movement
-                            continue OUTER; // movement is invalid
+                    if (axisIndex != 2) // not checking for vertical movement
+                        //continue OUTER; // movement is invalid
 
-                        // if we're falling, colliding, and we press space
-                        if (controller.jump && playerVelocity.y > 0.0F) {
-                            playerVelocity.y = -0.1F; // jump
-                            break OUTER;
-                        }
-
-                        // stop vertical movement
-                        playerVelocity.y = 0.0F;
-                        break OUTER;
+                    // if we're falling, colliding, and we press space
+                    if (controller.jump && playerVelocity.y > 0.0F) {
+                        playerVelocity.y = -0.1F; // jump
+                        //break OUTER;
                     }
-                }
 
-                playerPos.x = newPlayerX;
-                playerPos.y = newPlayerY;
-                playerPos.z = newPlayerZ;
+                    // stop vertical movement
+					playerVelocity.y = 0.0F;
+                    //break OUTER;
+                }
             }
+
+            playerPos.x = newPlayerX;
+            playerPos.y = newPlayerY;
+            playerPos.z = newPlayerZ;
         }
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
@@ -765,14 +605,16 @@ void run(GLFWwindow* window) {
                 world[magicX][magicY][magicZ] = BLOCK_AIR;
         }
 
-        // TODO render the screen
+        // TODO render the screen here
 
         deltaTime = glfwGetTime() - time;
 
-    	// not sure if we need this bc rendering on GPU
-        if (deltaTime < 16)
-            std::this_thread::sleep_for(std::chrono::milliseconds(16 - deltaTime));
+    	
+        glfwSwapBuffers(window);
+        glfwPollEvents();
     }
+
+    glfwTerminate();
 }
 
 void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
@@ -800,10 +642,38 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
 {
     if(action == GLFW_PRESS)
     {
-	    std::cout << "press\n";
+    	switch(key)
+    	{
+        case GLFW_KEY_W:
+            controller.forward = 1.0f;
+            break;
+        case GLFW_KEY_S:
+            controller.forward = -1.0f;
+            break;
+        case GLFW_KEY_D:
+            controller.right = 1.0f;
+            break;
+        case GLFW_KEY_A:
+            controller.right = -1.0f;
+            break;
+        case GLFW_KEY_SPACE:
+            controller.jump = true;
+    	}
     } else // action == GLFW_RELEASE
     {
-	    std::cout << "release\n";
+        switch (key)
+        {
+        case GLFW_KEY_W:
+        case GLFW_KEY_S:
+            controller.forward = 0.0f;
+            break;
+        case GLFW_KEY_D:
+        case GLFW_KEY_A:
+            controller.right = 0.0f;
+            break;
+        case GLFW_KEY_SPACE:
+            controller.jump = false;
+        }
     }
 }
 
@@ -824,7 +694,7 @@ int main(int argc, char** argv)
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // add on Mac bc Apple is big dumb :(
 #endif
-	
+    
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Minecraft4k", nullptr, nullptr);
     if (!window)
     {
