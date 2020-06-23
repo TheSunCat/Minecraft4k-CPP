@@ -551,10 +551,10 @@ void init()
 }
 
 void run(GLFWwindow* window) {
-    long startTime = glfwGetTime();
+    long startTime = currentTime();
 
     while (!glfwWindowShouldClose(window)) {
-        long time = glfwGetTime();
+        long time = currentTime();
 
         if (needsResUpdate) {
             updateScreenResolution();
@@ -720,7 +720,7 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     controller.lastMousePos.y = yPos;
 
     cameraYaw += xOffset / 100;
-    cameraPitch += yOffset / 100;
+    cameraPitch += yOffset / -100;
 
 	// TODO loop yaw around
     cameraPitch = clamp(cameraPitch, -90.0f, 90.0f);

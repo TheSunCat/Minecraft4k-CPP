@@ -1,12 +1,17 @@
 #include "Util.h"
 
+
+#include <chrono>
 #include <complex>
 #include <iostream>
-#include <GLFW/glfw3.h>
+
+long long currentTime()
+{
+    return std::chrono::system_clock::now().time_since_epoch().count();
+}
 
 uint64_t Random::seedUniquifier = 8682522807148012;
-
-Random::Random() : seed(uniqueSeed() ^ uint64_t(glfwGetTime())) {}
+Random::Random() : seed(uniqueSeed() ^ uint64_t(currentTime())) {}
 Random::Random(const long seed) : seed(initialScramble(seed)) {}
 
 uint64_t Random::initialScramble(const uint64_t seed)
@@ -29,29 +34,24 @@ uint64_t Random::uniqueSeed()
     }
 }
 
-int Random::next(const int bits) const
+int Random::next(const int bits)
 {
-    uint64_t nextseed;
-    const uint64_t seed1 = seed;
-    do {
-        const uint64_t oldseed = seed1;
-        nextseed = (oldseed * multiplier + addend) & mask;
-        seedUniquifier = nextseed;
-    } while (seedUniquifier != nextseed);
-    return int(nextseed >> (48 - bits));
+    seed = (seed * multiplier + addend) & mask;
+	
+    return int(seed >> (48 - bits));
 }
 
-float Random::nextFloat() const
+float Random::nextFloat()
 {
     return next(24) / float(1 << 24);
 }
 
-int Random::nextInt() const
+int Random::nextInt()
 {
     return next(32);
 }
 
-int Random::nextInt(const int bound) const
+int Random::nextInt(const int bound)
 {
     int r = next(31);
     const int m = bound - 1;
@@ -90,7 +90,7 @@ float perlin[PERLIN_RES + 1];
 
 float Perlin::noise(float x, float y) { // stolen from Processing
     if (perlin[0] == 0) {
-	    const Random r = Random(18295169L);
+	    Random r = Random(18295169L);
 
         for (float& i : perlin)
 	        i = r.nextFloat();

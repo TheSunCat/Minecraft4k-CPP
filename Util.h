@@ -1,14 +1,15 @@
 #pragma once
 
-#include <glm/fwd.hpp>
-
+#include <cstdint>
 
 constexpr float PI = 3.14159265359f;
+
+long long currentTime();
 
 // It's just the Java Random class
 class Random
 {
-	glm::uint64_t seed = 0;
+	uint64_t seed = 0;
 
     static uint64_t seedUniquifier;
 
@@ -20,18 +21,18 @@ class Random
 
     static uint64_t uniqueSeed();
 
-    int next(const int bits) const;
+    int next(const int bits);
 
 public:
     Random(const long seed);
 
     Random();
 
-    float nextFloat() const;
+    float nextFloat();
 
-    int nextInt() const;
+    int nextInt();
 
-    int nextInt(const int bound) const;
+    int nextInt(const int bound);
 
     void setSeed(const uint64_t newSeed);
 };
