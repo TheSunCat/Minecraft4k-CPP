@@ -41,3 +41,5 @@ namespace Perlin
 {
     float noise(float x, float y);
 }
+
+float clamp(float val, const float min, const float max);

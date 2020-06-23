@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+#include "Shader.h"
 #include "Util.h"
 
 
@@ -23,7 +24,7 @@ struct Controller
     bool firstMouse = true;
 };
 
-#define CLASSIC false;
+//#define CLASSIC;
 
 Controller controller{};
 
@@ -34,10 +35,19 @@ int SCR_DETAIL = 1;
 int SCR_RES_X = 107 * pow(2, SCR_DETAIL);
 int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
+Shader renderShader;
+GLuint computeProgram;
+GLuint buffer;
+GLuint vao;
+
+GLuint textureAtlasTex;
+GLuint worldTexture;
+GLuint screenTexture;
+
 constexpr int WINDOW_WIDTH = 856;
 constexpr int WINDOW_HEIGHT = 480;
 
-#if CLASSIC
+#ifdef CLASSIC
 constexpr float RENDER_DIST = 20.0f;
 #else
 constexpr float RENDER_DIST = 80.0f;
@@ -99,10 +109,20 @@ glm::vec3 sunColor;
 glm::vec3 ambColor;
 glm::vec3 skyColor;
 
-unsigned char world[WORLD_SIZE][WORLD_HEIGHT][WORLD_SIZE];
+int world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
 
 unsigned char hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
+
+static void setBlock(const int x, const int y, const int z, const int block)
+{
+    world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT] = block;
+}
+
+static int getBlock(const int x, const int y, const int z)
+{
+    return world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT];
+}
 
 static void fillBox(const unsigned char blockId, const glm::vec3& pos0,
     const glm::vec3& pos1, const bool replace)
@@ -114,11 +134,11 @@ static void fillBox(const unsigned char blockId, const glm::vec3& pos0,
             for (int z = pos0.z; z < pos1.z; z++)
             {
                 if (!replace) {
-                    if (world[x][y][z] != BLOCK_AIR)
+                    if (getBlock(x, y, z) != BLOCK_AIR)
                         continue;
                 }
 
-                world[x][y][z] = blockId;
+                setBlock(x, y, z, blockId);
             }
         }
     }
@@ -175,13 +195,14 @@ void updateScreenResolution()
     needsResUpdate = false;
 }
 
-void run(GLFWwindow* window) {
+void init()
+{
     Random rand = Random(18295169L);
 
     // generate world
 
     float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
-#if CLASSIC
+#ifdef CLASSIC
     for (int x = WORLD_SIZE; x >= 0; x--) {
         for (int y = 0; y < WORLD_HEIGHT; y++) {
             for (int z = 0; z < WORLD_SIZE; z++) {
@@ -198,7 +219,7 @@ void run(GLFWwindow* window) {
                 world[x][y][z] = block;
             }
         }
-    }
+}
 #else
     float halfWorldSize = WORLD_SIZE / 2.0f;
 
@@ -219,7 +240,7 @@ void run(GLFWwindow* window) {
                 else // (y == terrainHeight)
                     block = BLOCK_GRASS;
 
-                world[x][y][z] = block;
+                setBlock(x, y, z, block);
             }
         }
     }
@@ -240,11 +261,11 @@ void run(GLFWwindow* window) {
                 {
                     unsigned char block = BLOCK_WOOD;
 
-                    world[treeX][y][treeZ] = block;
+                    setBlock(treeX, y, treeZ, block);
                 }
 
                 // foliage
-                fillBox(BLOCK_LEAVES, 
+                fillBox(BLOCK_LEAVES,
                     glm::vec3(treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2),
                     glm::vec3(treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3), false);
 
@@ -269,14 +290,14 @@ void run(GLFWwindow* window) {
 
                     switch (foliageCut) {
                     case 0: // cut out top
-                        world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
+                        setBlock(foliageX, terrainHeight - treeHeight + 1, foliageZ, BLOCK_AIR);
                         break;
                     case 1: // cut out bottom
-                        world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
+                        setBlock(foliageX, terrainHeight - treeHeight + 2, foliageZ, BLOCK_AIR);
                         break;
                     case 2: // cut out both
-                        world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
-                        world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
+                        setBlock(foliageX, terrainHeight - treeHeight + 1, foliageZ, BLOCK_AIR);
+                        setBlock(foliageX, terrainHeight - treeHeight + 2, foliageZ, BLOCK_AIR);
                         break;
                     default: // do nothing
                         break;
@@ -290,11 +311,11 @@ void run(GLFWwindow* window) {
 
                     switch (crownCut) {
                     case 0: // cut out both
-                        world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
-                        world[crownX][terrainHeight - treeHeight][crownZ] = BLOCK_AIR;
+                        setBlock(crownX, terrainHeight - treeHeight - 1, crownZ, BLOCK_AIR);
+                        setBlock(crownX, terrainHeight - treeHeight, crownZ, BLOCK_AIR);
                         break;
                     default: // do nothing
-                        world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
+                        setBlock(crownX, terrainHeight - treeHeight - 1, crownZ, BLOCK_AIR);
                         break;
                     }
                 }
@@ -308,7 +329,7 @@ void run(GLFWwindow* window) {
 
 
     int textureAtlas[TEXTURE_RES * TEXTURE_RES * 3 * 16];
-    
+
     // procedurally generates the 16x3 textureAtlas
     // gsd = grayscale detail
     for (int blockType = 1; blockType < 16; blockType++) {
@@ -321,7 +342,7 @@ void run(GLFWwindow* window) {
                 int gsd_constexpr;
                 int tint;
 
-#if CLASSIC
+#ifdef CLASSIC
                 if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
                     gsd_tempA = 0xFF - rand.nextInt(0x60);
 
@@ -396,7 +417,7 @@ void run(GLFWwindow* window) {
                         tint = 0;
                         gsd_constexpr = 0xFF;
                     }
-                }
+            }
 #else
                 float pNoise = Perlin::noise(x, y);
 
@@ -509,12 +530,27 @@ void run(GLFWwindow* window) {
 
                 // write pixel to the texture atlas
                 textureAtlas[x + y * TEXTURE_RES + blockType * (TEXTURE_RES * TEXTURE_RES) * 3] = col;
-            }
         }
     }
+    }
 
-	// TODO upload textureAtlas to GL
+    glGenTextures(1, &textureAtlasTex);
+    glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
+
+	
+    glGenTextures(1, &worldTexture);
+    glBindTexture(GL_TEXTURE_3D, worldTexture);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RGB, GL_UNSIGNED_BYTE, world);
+}
+
+void run(GLFWwindow* window) {
     long startTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window)) {
@@ -580,7 +616,7 @@ void run(GLFWwindow* window) {
 	            // check collision with world bounds and world blocks
 	            if (colliderBlockX < 0 || colliderBlockZ < 0
 	                || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
-	                || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
+	                || getBlock(colliderBlockX, colliderBlockY, colliderBlockZ) != BLOCK_AIR) {
 
 	                if (axisIndex != 2) // not checking for vertical movement
 	                    goto NEXT; // movement is invalid
@@ -610,12 +646,53 @@ void run(GLFWwindow* window) {
 
             // check if hovered block is within world boundaries
             if (magicX >= 0 && magicY >= 0 && magicZ >= 0 && magicX < WORLD_SIZE && magicY < WORLD_HEIGHT && magicZ < WORLD_SIZE)
-                world[magicX][magicY][magicZ] = BLOCK_AIR;
+                setBlock(magicX, magicY, magicZ, BLOCK_AIR);
         }
 
-        // TODO render the screen here
+    	// Compute the raytracing!
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    	
+        glUseProgram(computeProgram);
 
-        std::cout << playerPos.x << ", " << playerPos.y << ", " << playerPos.z << std::endl;
+        //glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
+        glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
+    	
+        
+        glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
+        glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
+        glUniform1f(glGetUniformLocation(computeProgram, "camera.FOV"), 90);
+
+        glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
+    	
+        glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), textureAtlasTex);
+        glUniform1i(glGetUniformLocation(computeProgram, "world"), worldTexture);
+
+    	
+        glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+        glUseProgram(0);
+    	
+        // render the screen texture
+        renderShader.use();
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(2);
+
+        glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glDisableVertexAttribArray(2);
+        glDisableVertexAttribArray(0);
+
+        glUseProgram(0);
+
+
+        std::cout << cameraPitch << std::endl;
     	
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -642,7 +719,11 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     controller.lastMousePos.x = xPos;
     controller.lastMousePos.y = yPos;
 
-    //TODO rotateCameraBy(xOffset, yOffset)
+    cameraYaw += xOffset / 100;
+    cameraPitch += yOffset / 100;
+
+	// TODO loop yaw around
+    cameraPitch = clamp(cameraPitch, -90.0f, 90.0f);
 }
 
 void key_callback(GLFWwindow*, const int key, const int scancode, const int action, const int mods)
@@ -684,6 +765,42 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
     }
 }
 
+void initBuffers(GLuint* vao, GLuint* buffer) {
+    GLfloat vertices[] = {
+        -1.f, -1.f,
+        0.f, 1.f,
+        -1.f, 1.f,
+        0.f, 0.f,
+        1.f, -1.f,
+        1.f, 1.f,
+        -1.f, 1.f,
+        0.f, 0.f,
+        1.f, -1.f,
+        1.f, 1.f,
+        1.f, 1.f,
+        1.f, 0.f
+    };
+
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(*vao);
+
+    glGenBuffers(1, buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, *buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void initTexture(GLuint* texture, const int width, const int height) {
+    glGenTextures(1, texture);
+    glBindTexture(GL_TEXTURE_2D, *texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glBindImageTexture(0, *texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+}
+
 int main(int argc, char** argv)
 {
     if (!glfwInit())
@@ -693,7 +810,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
@@ -722,10 +839,27 @@ int main(int argc, char** argv)
         return -1;
     }
 
+
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glClearDepth(1);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_TEXTURE_2D);
+    glCullFace(GL_FRONT_AND_BACK);
+    glClearColor(0, 0, 0, 1);
 
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetKeyCallback(window, key_callback);
 
+    renderShader = Shader("screen", "screen");
+    computeProgram = loadCompute("res/raytrace.comp");
+
+    glActiveTexture(GL_TEXTURE0);
+    initBuffers(&vao, &buffer);
+    initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
+
+    init();
+	
     run(window);
 }

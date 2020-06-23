@@ -1,0 +1,279 @@
+#version 430
+layout(local_size_x = 1, local_size_y = 1) in;
+layout(rgba32f, binding = 0) uniform image2D img_output;
+
+struct Camera
+{
+    float yaw;
+    float pitch;
+    float FOV;
+};
+
+uniform readonly vec2 screenSize;
+uniform readonly Camera camera;
+uniform readonly vec3 playerPos;
+
+uniform readonly sampler2D textureAtlas;
+uniform readonly sampler3D world;
+
+vec3 lightDirection = vec3(0.866025404f, -0.866025404f, 0.866025404f);
+
+vec3 FOG_COLOR = vec3(1);
+vec3 sunColor = vec3(1);
+vec3 ambColor = vec3(0.5);
+vec3 skyColor = vec3(0.32, 0.73, 0.97);
+
+const int AXIS_X = 0;
+const int AXIS_Y = 1;
+const int AXIS_Z = 2;
+
+const int WORLD_SIZE = 64;
+const int WORLD_HEIGHT = 64;
+
+const int TEXTURE_RES = 16;
+    
+const int BLOCK_AIR = 0;
+
+float length2(vec3 a)
+{
+    return a.x * a.x + a.y * a.y + a.z * a.z;
+}
+
+vec3 lerp(vec3 start, vec3 end, float t)
+{
+    return start + (end - start) * t;
+}
+
+vec3 raytrace(in ivec2 pixel_coords)
+{
+    float frustumRayX = ((pixel_coords.x - (screenSize.x / 2)) / camera.FOV) /  screenSize.x * 214.0f;
+    float frustumRayY = ((pixel_coords.y - (screenSize.y / 2)) / camera.FOV) / screenSize.y * 120.0f;
+                
+    float cosPitch = cos(camera.pitch);
+    float sinPitch = sin(camera.pitch);
+
+    float cosYaw = cos(camera.yaw);
+    float sinYaw = sin(camera.yaw);
+
+    // rotate frustum space to world space
+    float temp = cosPitch + frustumRayY * sinPitch;
+
+    vec3 rayDir = vec3(frustumRayX * cosYaw + temp * sinYaw, frustumRayY * cosPitch - sinPitch, temp * cosYaw - frustumRayX * sinYaw);
+    rayDir = normalize(rayDir);
+                
+    float sunDot = dot(rayDir, lightDirection);
+                
+    vec3 pixelColor = vec3(0.53, 0.70, 0.99); // sky color (default)
+    float fogIntensity = 0.0f;
+    float lightIntensity = 1.0f;
+                
+    double furthestHit = 20;
+
+    float closestHitX = -1;
+    float closestHitY = -1;
+    float closestHitZ = -1;
+                
+    bool blockHit = false;
+                
+    vec3 rayOrigin = playerPos;
+
+
+    for(int pass = 0; pass < 2; pass++)
+    {
+        for (int axis = 0; axis < 3; axis++)
+        {
+            // align ray to block edge on this axis
+            // and calc ray deltas
+            float delta;
+            switch(axis)
+            {
+                default:
+                case AXIS_X:
+                    delta = rayDir.x;
+                    break;
+                case AXIS_Y:
+                    delta = rayDir.y;
+                    break;
+                case AXIS_Z:
+                    delta = rayDir.z;
+                    break;
+            }
+
+            float rayDeltaX = rayDir.x / abs(delta);
+            float rayDeltaY = rayDir.y / abs(delta);
+            float rayDeltaZ = rayDir.z / abs(delta);
+
+            float playerOffsetFromBlockEdge; // TODO confirm
+            switch(axis)
+            {
+                default:
+                case AXIS_X:
+                    playerOffsetFromBlockEdge = mod(rayOrigin.x, 1.0f);
+                    break;
+                case AXIS_Y:
+                    playerOffsetFromBlockEdge = mod(rayOrigin.y, 1.0f);
+                    break;
+                case AXIS_Z:
+                    playerOffsetFromBlockEdge = mod(rayOrigin.z, 1.0f);
+                    break;
+            }
+
+            if (delta > 0)
+                playerOffsetFromBlockEdge = 1.0f - playerOffsetFromBlockEdge;
+
+            float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
+
+            float rayX = rayOrigin.x + rayDeltaX * playerOffsetFromBlockEdge;
+            float rayY = rayOrigin.y + rayDeltaY * playerOffsetFromBlockEdge;
+            float rayZ = rayOrigin.z + rayDeltaZ * playerOffsetFromBlockEdge;
+
+            if (delta < 0.0F)
+            {
+                if (axis == AXIS_X)
+                    rayX--;
+
+                if (axis == AXIS_Y)
+                    rayY--;
+
+                if (axis == AXIS_Z)
+                    rayZ--;
+            }
+            
+            bool skipRestOfIter = false;
+    
+            // do the raycast
+            while (rayTravelDist < furthestHit)
+            {
+                int blockHitX = int(rayX - WORLD_SIZE);
+                int blockHitY = int(rayY - WORLD_HEIGHT);
+                int blockHitZ = int(rayZ - WORLD_SIZE);
+
+                // if ray exits the world
+                if (blockHitX < 0 || blockHitY < -2 || blockHitZ < 0 || blockHitX >= WORLD_SIZE || blockHitY >= WORLD_HEIGHT || blockHitZ >= WORLD_SIZE)
+                    break;
+
+                int blockHitID = blockHitY < 0 ? BLOCK_AIR : int(texture(world, vec3(blockHitX, blockHitY, blockHitZ)));
+
+                if (blockHitID != BLOCK_AIR)
+                {
+                    int texFetchX = int(mod((rayX + rayZ) * TEXTURE_RES, TEXTURE_RES));
+                    int texFetchY = int(mod(rayY * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
+
+                    if (axis == AXIS_Y)
+                    {
+                        texFetchX = int(mod(rayX * TEXTURE_RES, TEXTURE_RES));
+                        texFetchY = int(mod(rayZ * TEXTURE_RES, TEXTURE_RES));
+
+                        if (rayDeltaY < 0.0F) // looking at the underside of a block
+                            texFetchY += TEXTURE_RES * 2;
+                    }
+
+                    vec3 textureColor;
+//                    if(pass == 0 &&
+//                            (blockHitX == hoveredBlockPosX && blockHitY == hoveredBlockPosY && blockHitZ == hoveredBlockPosZ &&
+//                            (  (texFetchX == 0               || texFetchY % TEXTURE_RES == 0)
+//                            || (texFetchX == TEXTURE_RES - 1 || texFetchY % TEXTURE_RES == TEXTURE_RES - 1))))
+//                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
+//                    else
+                    textureColor = vec3(texture(textureAtlas, vec2(texFetchX, + texFetchY * TEXTURE_RES + blockHitID)));
+
+                    int direction = 1;
+                    if (delta > 0.0F)
+                        direction = -1;
+                    
+
+                    if (length2(textureColor) != 0) { // pixel is not transparent
+                        if(pass == 0) // not shadows
+                        {
+                            pixelColor = textureColor;
+                            fogIntensity = (rayTravelDist / 20);
+                        }
+                        else
+                        { // shadows
+                            lightIntensity = 0.25f;
+                            
+                            skipRestOfIter = true;
+                            break;
+                        }
+                                    
+                        furthestHit = rayTravelDist;
+
+
+                        closestHitX = rayX;
+                        closestHitY = rayY;
+                        closestHitZ = rayZ;
+                                        
+                        switch(axis)
+                        {
+                            case AXIS_X:
+                                lightIntensity = direction * lightDirection.x;
+                                break;
+                            case AXIS_Y:
+                                lightIntensity = direction * lightDirection.y;
+                                break;
+                            case AXIS_Z:
+                                lightIntensity = direction * lightDirection.z;
+                                break;
+                        }
+
+                        lightIntensity = (1 + lightIntensity) / 2.0F;
+                    }
+                }
+                
+                rayX += rayDeltaX;
+                rayY += rayDeltaY;
+                rayZ += rayDeltaZ;
+
+                rayTravelDist += 1.0f / abs(delta);
+            }
+            if(skipRestOfIter)
+                break;
+        }
+                    
+        if(!blockHit) // don't do sky shadows
+            break;
+                    
+        // TODO why?
+        if(lightIntensity <= 0.5f)
+            break;
+                    
+        // prepare for shadows pass
+        rayOrigin.x = closestHitX;
+        rayOrigin.y = closestHitY;
+        rayOrigin.z = closestHitZ;
+                    
+        rayDir.x = lightDirection.x;
+        rayDir.y = lightDirection.y;
+        rayDir.z = lightDirection.z;
+                    
+        furthestHit = 20;
+    }
+                
+    if(blockHit)
+    {
+        pixelColor = lerp(pixelColor, FOG_COLOR, fogIntensity);
+
+        vec3 lightColor = lerp(ambColor, sunColor, lightIntensity);
+
+        pixelColor = cross(pixelColor, lightColor);
+    } else {
+        if(sunDot > 0.99f)
+            pixelColor = vec3(sunColor);
+        else
+            pixelColor = vec3(skyColor);
+    }    
+
+    return pixelColor;
+}
+
+void main() {
+    // base pixel color for image
+    vec4 pixel = vec4(0, 0, 0, 1);
+    // get index in global work group i.e x,y position
+    ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+
+    pixel.xyz = raytrace(pixel_coords);
+
+    // output to a specific pixel in the image
+    imageStore(img_output, pixel_coords, pixel);
+}

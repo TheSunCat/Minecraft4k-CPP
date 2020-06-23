@@ -1,7 +1,7 @@
 #include "Util.h"
 
-
 #include <complex>
+#include <iostream>
 #include <GLFW/glfw3.h>
 
 uint64_t Random::seedUniquifier = 8682522807148012;
@@ -90,10 +90,10 @@ float perlin[PERLIN_RES + 1];
 
 float Perlin::noise(float x, float y) { // stolen from Processing
     if (perlin[0] == 0) {
-        Random r = Random(18295169L);
+	    const Random r = Random(18295169L);
 
-        for (int i = 0; i < PERLIN_RES + 1; i++)
-            perlin[i] = r.nextFloat();
+        for (float& i : perlin)
+	        i = r.nextFloat();
     }
 
     if (x < 0)
@@ -150,4 +150,20 @@ float Perlin::noise(float x, float y) { // stolen from Processing
     }
 
     return r;
+}
+
+float clamp(float val, const float min, const float max)
+{
+    if (min >= max)
+    {
+	    std::cout << "Min (" << min << ") is not less than max (" << max << ")!" << std::endl;
+        return val;
+	}
+	
+    if (val < min)
+        val = min;
+    else if (val > max)
+        val = max;
+
+    return val;
 }
