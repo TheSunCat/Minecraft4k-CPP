@@ -23,7 +23,7 @@ struct Controller
     bool firstMouse = true;
 };
 
-constexpr bool CLASSIC = false;
+#define CLASSIC false;
 
 Controller controller{};
 
@@ -37,7 +37,12 @@ int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 constexpr int WINDOW_WIDTH = 856;
 constexpr int WINDOW_HEIGHT = 480;
 
-constexpr float RENDER_DIST = CLASSIC ? 20.0f : 80.0f;
+#if CLASSIC
+constexpr float RENDER_DIST = 20.0f;
+#else
+constexpr float RENDER_DIST = 80.0f;
+#endif
+
 constexpr float PLAYER_REACH = 5.0f;
 
 constexpr int TEXTURE_RES = 16;
@@ -166,6 +171,8 @@ void updateScreenResolution()
     }
 
     //TODO frame.setTitle(title);
+
+    needsResUpdate = false;
 }
 
 void run(GLFWwindow* window) {
@@ -174,133 +181,132 @@ void run(GLFWwindow* window) {
     // generate world
 
     float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
-    if (CLASSIC) {
-        for (int x = WORLD_SIZE; x >= 0; x--) {
-            for (int y = 0; y < WORLD_HEIGHT; y++) {
-                for (int z = 0; z < WORLD_SIZE; z++) {
-                    unsigned char block;
-
-                    if (y > maxTerrainHeight + rand.nextInt(8))
-                        block = rand.nextInt(8) + 1;
-                    else
-                        block = BLOCK_AIR;
-
-                    if (x == WORLD_SIZE)
-                        continue;
-
-                    world[x][y][z] = block;
-                }
-            }
-        }
-    }
-    else {
-        float halfWorldSize = WORLD_SIZE / 2.0f;
-
-        constexpr int stoneDepth = 5;
-
-        for (int x = 0; x < WORLD_SIZE; x++) {
+#if CLASSIC
+    for (int x = WORLD_SIZE; x >= 0; x--) {
+        for (int y = 0; y < WORLD_HEIGHT; y++) {
             for (int z = 0; z < WORLD_SIZE; z++) {
-                int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
+                unsigned char block;
 
-                for (int y = terrainHeight; y < WORLD_HEIGHT; y++)
-                {
-                    unsigned char block;
+                if (y > maxTerrainHeight + rand.nextInt(8))
+                    block = rand.nextInt(8) + 1;
+                else
+                    block = BLOCK_AIR;
 
-                    if (y > terrainHeight + stoneDepth)
-                        block = BLOCK_STONE;
-                    else if (y > terrainHeight)
-                        block = 2; // dirt
-                    else // (y == terrainHeight)
-                        block = BLOCK_GRASS;
+                if (x == WORLD_SIZE)
+                    continue;
 
-                    world[x][y][z] = block;
-                }
+                world[x][y][z] = block;
             }
         }
+    }
+#else
+    float halfWorldSize = WORLD_SIZE / 2.0f;
 
-        // populate trees
-        for (int x = 4; x < WORLD_SIZE - 4; x += 8) {
-            for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
-                if (rand.nextInt(4) == 0) // spawn tree
+    constexpr int stoneDepth = 5;
+
+    for (int x = 0; x < WORLD_SIZE; x++) {
+        for (int z = 0; z < WORLD_SIZE; z++) {
+            int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
+
+            for (int y = terrainHeight; y < WORLD_HEIGHT; y++)
+            {
+                unsigned char block;
+
+                if (y > terrainHeight + stoneDepth)
+                    block = BLOCK_STONE;
+                else if (y > terrainHeight)
+                    block = 2; // dirt
+                else // (y == terrainHeight)
+                    block = BLOCK_GRASS;
+
+                world[x][y][z] = block;
+            }
+        }
+    }
+
+    // populate trees
+    for (int x = 4; x < WORLD_SIZE - 4; x += 8) {
+        for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
+            if (rand.nextInt(4) == 0) // spawn tree
+            {
+                int treeX = x + (rand.nextInt(4) - 2);
+                int treeZ = z + (rand.nextInt(4) - 2);
+
+                int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
+
+                int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
+
+                for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
-                    int treeX = x + (rand.nextInt(4) - 2);
-                    int treeZ = z + (rand.nextInt(4) - 2);
+                    unsigned char block = BLOCK_WOOD;
 
-                    int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
+                    world[treeX][y][treeZ] = block;
+                }
 
-                    int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
+                // foliage
+                fillBox(BLOCK_LEAVES, 
+                    glm::vec3(treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2),
+                    glm::vec3(treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3), false);
 
-                    for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
-                    {
-                        unsigned char block = BLOCK_WOOD;
+                // crown
+                fillBox(BLOCK_LEAVES,
+                    glm::vec3(treeX - 1, terrainHeight - treeHeight - 1, treeZ - 1),
+                    glm::vec3(treeX + 2, terrainHeight - treeHeight + 1, treeZ + 2), false);
 
-                        world[treeX][y][treeZ] = block;
+
+                int foliageXList[] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
+                int foliageZList[] = { treeZ - 2, treeZ + 2, treeZ + 2, treeZ - 2 };
+
+                int crownXList[] = { treeX - 1, treeX - 1, treeX + 1, treeX + 1 };
+                int crownZList[] = { treeZ - 1, treeZ + 1, treeZ + 1, treeZ - 1 };
+
+                for (int i = 0; i < 4; i++)
+                {
+                    int foliageX = foliageXList[i];
+                    int foliageZ = foliageZList[i];
+
+                    int foliageCut = rand.nextInt(10);
+
+                    switch (foliageCut) {
+                    case 0: // cut out top
+                        world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
+                        break;
+                    case 1: // cut out bottom
+                        world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
+                        break;
+                    case 2: // cut out both
+                        world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
+                        world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
+                        break;
+                    default: // do nothing
+                        break;
                     }
 
-                    // foliage
-                    fillBox(BLOCK_LEAVES, 
-                        glm::vec3(treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2),
-                        glm::vec3(treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3), false);
 
-                    // crown
-                    fillBox(BLOCK_LEAVES,
-                        glm::vec3(treeX - 1, terrainHeight - treeHeight - 1, treeZ - 1),
-                        glm::vec3(treeX + 2, terrainHeight - treeHeight + 1, treeZ + 2), false);
+                    int crownX = crownXList[i];
+                    int crownZ = crownZList[i];
 
+                    int crownCut = rand.nextInt(10);
 
-                    int foliageXList[] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
-                    int foliageZList[] = { treeZ - 2, treeZ + 2, treeZ + 2, treeZ - 2 };
-
-                    int crownXList[] = { treeX - 1, treeX - 1, treeX + 1, treeX + 1 };
-                    int crownZList[] = { treeZ - 1, treeZ + 1, treeZ + 1, treeZ - 1 };
-
-                    for (int i = 0; i < 4; i++)
-                    {
-                        int foliageX = foliageXList[i];
-                        int foliageZ = foliageZList[i];
-
-                        int foliageCut = rand.nextInt(10);
-
-                        switch (foliageCut) {
-                        case 0: // cut out top
-                            world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
-                            break;
-                        case 1: // cut out bottom
-                            world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
-                            break;
-                        case 2: // cut out both
-                            world[foliageX][terrainHeight - treeHeight + 1][foliageZ] = BLOCK_AIR;
-                            world[foliageX][terrainHeight - treeHeight + 2][foliageZ] = BLOCK_AIR;
-                            break;
-                        default: // do nothing
-                            break;
-                        }
-
-
-                        int crownX = crownXList[i];
-                        int crownZ = crownZList[i];
-
-                        int crownCut = rand.nextInt(10);
-
-                        switch (crownCut) {
-                        case 0: // cut out both
-                            world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
-                            world[crownX][terrainHeight - treeHeight][crownZ] = BLOCK_AIR;
-                            break;
-                        default: // do nothing
-                            world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
-                            break;
-                        }
+                    switch (crownCut) {
+                    case 0: // cut out both
+                        world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
+                        world[crownX][terrainHeight - treeHeight][crownZ] = BLOCK_AIR;
+                        break;
+                    default: // do nothing
+                        world[crownX][terrainHeight - treeHeight - 1][crownZ] = BLOCK_AIR;
+                        break;
                     }
                 }
             }
         }
     }
+#endif
 
     // set random seed to generate textures
     rand.setSeed(151910774187927L);
 
-    // TODO upload this to GL
+
     int textureAtlas[TEXTURE_RES * TEXTURE_RES * 3 * 16];
     
     // procedurally generates the 16x3 textureAtlas
@@ -315,109 +321,41 @@ void run(GLFWwindow* window) {
                 int gsd_constexpr;
                 int tint;
 
-                if (CLASSIC) {
-                    if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
-                        gsd_tempA = 0xFF - rand.nextInt(0x60);
+#if CLASSIC
+                if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
+                    gsd_tempA = 0xFF - rand.nextInt(0x60);
 
-                    tint = 0x966C4A; // brown (dirt)
-                    switch (blockType)
-                    {
-                    case BLOCK_STONE:
-                    {
-                        tint = 0x7F7F7F; // grey
-                        break;
-                    }
-                    case BLOCK_GRASS:
-                    {
-                        if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
-                            tint = 0x6AAA40; // green
-                        else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
-                            gsd_tempA = gsd_tempA * 2 / 3;
-                        break;
-                    }
-                    case BLOCK_WOOD:
-                    {
-                        tint = 0x675231; // brown (bark)
-                        if (!(y >= TEXTURE_RES && y < TEXTURE_RES * 2) && // second row = stripes
-                            x > 0 && x < TEXTURE_RES - 1 &&
-                            ((y > 0 && y < TEXTURE_RES - 1) || (y > TEXTURE_RES * 2 && y < TEXTURE_RES * 3 - 1))) { // wood side area
-                            tint = 0xBC9862; // light brown
-
-                            // the following code repurposes 2 gsd variables making it a bit hard to read
-                            // but in short it gets the absolute distance from the tile's center in x and y direction 
-                            // finds the max of it
-                            // uses that to make the gray scale detail darker if the current pixel is part of an annual ring
-                            // and adds some noise as a finishing touch
-                            int woodCenter = TEXTURE_RES / 2 - 1;
-
-                            int dx = x - woodCenter;
-                            int dy = (y % TEXTURE_RES) - woodCenter;
-
-                            if (dx < 0)
-                                dx = 1 - dx;
-
-                            if (dy < 0)
-                                dy = 1 - dy;
-
-                            if (dy > dx)
-                                dx = dy;
-
-                            gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
-                        }
-                        else if (rand.nextInt(2) == 0) {
-                            // make the gsd 50% brighter on random pixels of the bark
-                            // and 50% darker if x happens to be odd
-                            gsd_tempA = gsd_tempA * (150 - (x & 1) * 100) / 100;
-                        }
-                        break;
-                    }
-                    case BLOCK_BRICKS:
-                    {
-                        tint = 0xB53A15; // red
-                        if ((x + y / 4 * 4) % 8 == 0 || y % 4 == 0) // gap between bricks
-                            tint = 0xBCAFA5; // reddish light grey
-                        break;
-                    }
-                    }
-
-                    gsd_constexpr = gsd_tempA;
-                    if (y >= TEXTURE_RES * 2) // bottom side of the block
-                        gsd_constexpr /= 2; // make it darker, baked "shading"
-
-                    if (blockType == BLOCK_LEAVES) {
-                        tint = 0x50D937; // green
-                        if (rand.nextInt(2) == 0) {
-                            tint = 0;
-                            gsd_constexpr = 0xFF;
-                        }
-                    }
+                tint = 0x966C4A; // brown (dirt)
+                switch (blockType)
+                {
+                case BLOCK_STONE:
+                {
+                    tint = 0x7F7F7F; // grey
+                    break;
                 }
-                else {
-                    float pNoise = Perlin::noise(x, y);
+                case BLOCK_GRASS:
+                {
+                    if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
+                        tint = 0x6AAA40; // green
+                    else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
+                        gsd_tempA = gsd_tempA * 2 / 3;
+                    break;
+                }
+                case BLOCK_WOOD:
+                {
+                    tint = 0x675231; // brown (bark)
+                    if (!(y >= TEXTURE_RES && y < TEXTURE_RES * 2) && // second row = stripes
+                        x > 0 && x < TEXTURE_RES - 1 &&
+                        ((y > 0 && y < TEXTURE_RES - 1) || (y > TEXTURE_RES * 2 && y < TEXTURE_RES * 3 - 1))) { // wood side area
+                        tint = 0xBC9862; // light brown
 
-                    tint = 0x966C4A; // brown (dirt)
-
-                    gsd_tempA = (1 - pNoise * 0.5f) * 255;
-                    switch (blockType) {
-                    case BLOCK_STONE:
-                    {
-                        tint = 0x7F7F7F; // grey
-                        gsd_tempA = (0.75 + round(abs(Perlin::noise(x * 0.5f, y * 2))) * 0.125f) * 255;
-                        break;
-                    }
-                    case BLOCK_GRASS:
-                    {
-                        if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
-                            tint = 0x7AFF40; //green
-                        else if (y < (((x * x * 3 + x * 81) / 2) % 4) + 19)
-                            gsd_tempA = gsd_tempA * 1 / 3;
-                        break;
-                    }
-                    case BLOCK_WOOD:
-                    {
-                        tint = 0x776644; // brown (bark)
-
+                        // the following code repurposes 2 gsd variables making it a bit hard to read
+                        // but in short it gets the absolute distance from the tile's center in x and y direction 
+                        // finds the max of it
+                        // uses that to make the gray scale detail darker if the current pixel is part of an annual ring
+                        // and adds some noise as a finishing touch
                         int woodCenter = TEXTURE_RES / 2 - 1;
+
                         int dx = x - woodCenter;
                         int dy = (y % TEXTURE_RES) - woodCenter;
 
@@ -430,71 +368,138 @@ void run(GLFWwindow* window) {
                         if (dy > dx)
                             dx = dy;
 
-                        double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
-
-                        if (y < 16 || y > 32) { // top/bottom
-                            if (distFromCenter < float(TEXTURE_RES) / 2.0f)
-                            {
-                                tint = 0xCCAA77; // light brown
-
-                                gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
-                            }
-                            else if (dx > dy) {
-                                gsd_tempA = Perlin::noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                            }
-                            else {
-                                gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                            }
-                        }
-                        else { // side texture
-                            gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                        }
-                        break;
+                        gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
                     }
-                    case BLOCK_BRICKS:
-                    {
-                        tint = 0x444444; // red
-
-                        float brickDX = abs(x % 8 - 4);
-                        float brickDY = abs((y % 4) - 2) * 2;
-
-                        if ((y / 4) % 2 == 1)
-                            brickDX = abs((x + 4) % 8 - 4);
-
-                        float d = sqrt(brickDX * brickDX + brickDY * brickDY) * .5f
-                            + std::max(brickDX, brickDY) * .5f;
-
-                        if (d > 4) // gap between bricks
-                            tint = 0xAAAAAA; // light grey
-                        break;
+                    else if (rand.nextInt(2) == 0) {
+                        // make the gsd 50% brighter on random pixels of the bark
+                        // and 50% darker if x happens to be odd
+                        gsd_tempA = gsd_tempA * (150 - (x & 1) * 100) / 100;
                     }
-                    }
+                    break;
+                }
+                case BLOCK_BRICKS:
+                {
+                    tint = 0xB53A15; // red
+                    if ((x + y / 4 * 4) % 8 == 0 || y % 4 == 0) // gap between bricks
+                        tint = 0xBCAFA5; // reddish light grey
+                    break;
+                }
+                }
 
-                    gsd_constexpr = gsd_tempA;
+                gsd_constexpr = gsd_tempA;
+                if (y >= TEXTURE_RES * 2) // bottom side of the block
+                    gsd_constexpr /= 2; // make it darker, baked "shading"
 
-                    if (blockType == BLOCK_LEAVES)
-                    {
+                if (blockType == BLOCK_LEAVES) {
+                    tint = 0x50D937; // green
+                    if (rand.nextInt(2) == 0) {
                         tint = 0;
-
-                        float dx = abs(x % 4 - 2) * 2;
-                        float dy = (y % 8) - 4;
-
-                        if ((y / 8) % 2 == 1)
-                            dx = abs((x + 2) % 4 - 2) * 2;
-
-                        dx += pNoise;
-
-                        float d = dx + abs(dy);
-
-                        if (dy < 0)
-                            d = sqrt(dx * dx + dy * dy);
-
-                        if (d < 3.5f)
-                            tint = 0xFFCCDD;
-                        else if (d < 4)
-                            tint = 0xCCAABB;
+                        gsd_constexpr = 0xFF;
                     }
                 }
+#else
+                float pNoise = Perlin::noise(x, y);
+
+                tint = 0x966C4A; // brown (dirt)
+
+                gsd_tempA = (1 - pNoise * 0.5f) * 255;
+                switch (blockType) {
+                case BLOCK_STONE:
+                {
+                    tint = 0x7F7F7F; // grey
+                    gsd_tempA = double(0.75 + round(abs(Perlin::noise(x * 0.5f, y * 2))) * 0.125) * 255;
+                    break;
+                }
+                case BLOCK_GRASS:
+                {
+                    if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
+                        tint = 0x7AFF40; //green
+                    else if (y < (((x * x * 3 + x * 81) / 2) % 4) + 19)
+                        gsd_tempA = gsd_tempA * 1 / 3;
+                    break;
+                }
+                case BLOCK_WOOD:
+                {
+                    tint = 0x776644; // brown (bark)
+
+                    int woodCenter = TEXTURE_RES / 2 - 1;
+                    int dx = x - woodCenter;
+                    int dy = (y % TEXTURE_RES) - woodCenter;
+
+                    if (dx < 0)
+                        dx = 1 - dx;
+
+                    if (dy < 0)
+                        dy = 1 - dy;
+
+                    if (dy > dx)
+                        dx = dy;
+
+                    double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
+
+                    if (y < 16 || y > 32) { // top/bottom
+                        if (distFromCenter < float(TEXTURE_RES) / 2.0f)
+                        {
+                            tint = 0xCCAA77; // light brown
+
+                            gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
+                        }
+                        else if (dx > dy) {
+                            gsd_tempA = Perlin::noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                        }
+                        else {
+                            gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                        }
+                    }
+                    else { // side texture
+                        gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
+                    }
+                    break;
+                }
+                case BLOCK_BRICKS:
+                {
+                    tint = 0x444444; // red
+
+                    float brickDX = abs(x % 8 - 4);
+                    float brickDY = abs((y % 4) - 2) * 2;
+
+                    if ((y / 4) % 2 == 1)
+                        brickDX = abs((x + 4) % 8 - 4);
+
+                    float d = sqrt(brickDX * brickDX + brickDY * brickDY) * .5f
+                        + std::max(brickDX, brickDY) * .5f;
+
+                    if (d > 4) // gap between bricks
+                        tint = 0xAAAAAA; // light grey
+                    break;
+                }
+                }
+
+                gsd_constexpr = gsd_tempA;
+
+                if (blockType == BLOCK_LEAVES)
+                {
+                    tint = 0;
+
+                    float dx = abs(x % 4 - 2) * 2;
+                    float dy = (y % 8) - 4;
+
+                    if ((y / 8) % 2 == 1)
+                        dx = abs((x + 2) % 4 - 2) * 2;
+
+                    dx += pNoise;
+
+                    float d = dx + abs(dy);
+
+                    if (dy < 0)
+                        d = sqrt(dx * dx + dy * dy);
+
+                    if (d < 3.5f)
+                        tint = 0xFFCCDD;
+                    else if (d < 4)
+                        tint = 0xCCAABB;
+                }
+#endif
 
                 // multiply tint by the grayscale detail
                 int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
@@ -508,13 +513,14 @@ void run(GLFWwindow* window) {
         }
     }
 
+	// TODO upload textureAtlas to GL
+
     long startTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window)) {
         long time = glfwGetTime();
 
         if (needsResUpdate) {
-            needsResUpdate = false;
             updateScreenResolution();
         }
         
@@ -555,46 +561,48 @@ void run(GLFWwindow* window) {
         playerVelocity.y += 0.003F; // gravity
 
 
-        //check for movement on each axis individually
-        for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-            float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
-            float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
-            float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
+        // check for movement on each axis individually
+		OUTER:
+	    for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
+	        float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
+	        float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
+	        float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
 
-            for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-                // magic
-                int colliderBlockX = (newPlayerX + (colliderIndex         & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
-                int colliderBlockY = (newPlayerY + ((colliderIndex >> 2)  - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-                int colliderBlockZ = (newPlayerZ + (colliderIndex >> 1    & 1) * 0.6F - 0.3F)  - WORLD_SIZE;
+	        for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
+	            // magic
+	            int colliderBlockX = int(newPlayerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+	            int colliderBlockY = int(newPlayerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+	            int colliderBlockZ = int(newPlayerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
-                if (colliderBlockY < 0)
-                    continue;
+	            if (colliderBlockY < 0)
+	                continue;
 
-                // check collision with world bounds and world blocks
-                if (colliderBlockX < 0 || colliderBlockZ < 0
-                    || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
-                    || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
+	            // check collision with world bounds and world blocks
+	            if (colliderBlockX < 0 || colliderBlockZ < 0
+	                || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
+	                || world[colliderBlockX][colliderBlockY][colliderBlockZ] != BLOCK_AIR) {
 
-                    if (axisIndex != 2) // not checking for vertical movement
-                        //continue OUTER; // movement is invalid
+	                if (axisIndex != 2) // not checking for vertical movement
+	                    goto NEXT; // movement is invalid
 
-                    // if we're falling, colliding, and we press space
-                    if (controller.jump && playerVelocity.y > 0.0F) {
-                        playerVelocity.y = -0.1F; // jump
-                        //break OUTER;
-                    }
+	                // if we're falling, colliding, and we press space
+	                if (controller.jump && playerVelocity.y > 0.0F) {
+	                    playerVelocity.y = -0.1F; // jump
+	                    goto OUTER;
+	                }
 
-                    // stop vertical movement
-					playerVelocity.y = 0.0F;
-                    //break OUTER;
-                }
-            }
+	                // stop vertical movement
+	                playerVelocity.y = 0.0F;
+	                goto OUTER;
+	            }
+	        }
 
-            playerPos.x = newPlayerX;
-            playerPos.y = newPlayerY;
-            playerPos.z = newPlayerZ;
-        }
+	        playerPos.x = newPlayerX;
+	        playerPos.y = newPlayerY;
+	        playerPos.z = newPlayerZ;
+	    }
 
+    	NEXT:
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
             int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
@@ -607,8 +615,7 @@ void run(GLFWwindow* window) {
 
         // TODO render the screen here
 
-        deltaTime = glfwGetTime() - time;
-
+        std::cout << playerPos.x << ", " << playerPos.y << ", " << playerPos.z << std::endl;
     	
         glfwSwapBuffers(window);
         glfwPollEvents();
