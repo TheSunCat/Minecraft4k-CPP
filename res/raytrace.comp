@@ -273,7 +273,7 @@ void main() {
 
     //pixel.xyz = raytrace(pixel_coords);
 
-    pixel = vec4(imageLoad(textureAtlas, ivec2(pixel_coords.x, pixel_coords.y)));
+    pixel = imageLoad(textureAtlas, ivec2(pixel_coords.x, pixel_coords.y));
 
     // output to a specific pixel in the image
     imageStore(img_output, pixel_coords, pixel);

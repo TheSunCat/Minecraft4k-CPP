@@ -523,7 +523,7 @@ void init()
 #endif
 
                 // multiply tint by the grayscale detail
-                int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
+                const int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
                     (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
                     (tint >> 8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
                     (tint & 0xFF) * gsd_constexpr / 0xFF;
@@ -541,8 +541,8 @@ void init()
 
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA, TEXTURE_RES * 3, TEXTURE_RES * 16);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
 	
     //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -665,7 +665,7 @@ void run(GLFWwindow* window) {
         glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
         glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
     	
-        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
+        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
