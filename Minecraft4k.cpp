@@ -328,7 +328,7 @@ void init()
     rand.setSeed(151910774187927L);
 
 
-    int textureAtlas[TEXTURE_RES * TEXTURE_RES * 3 * 16];
+    int* textureAtlas = new int[TEXTURE_RES * TEXTURE_RES * 3 * 16];
 
     // procedurally generates the 16x3 textureAtlas
     // gsd = grayscale detail
@@ -545,6 +545,8 @@ void init()
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 3, TEXTURE_RES * 16);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    delete[] textureAtlas;
 	
 	glGenTextures(1, &worldTexture);
 	glBindTexture(GL_TEXTURE_3D, worldTexture);
@@ -599,7 +601,7 @@ void run(GLFWwindow* window) {
         playerVelocity.y += 0.003F; // gravity
 
 
-        // check for movement on each axis individually
+        // check for movement on each axis individually?
 		OUTER:
 	    for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
 	        float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
