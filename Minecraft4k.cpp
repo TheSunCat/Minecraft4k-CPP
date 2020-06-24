@@ -702,8 +702,6 @@ void run(GLFWwindow* window) {
 
         glUseProgram(0);
 
-
-        std::cout << cameraPitch << std::endl;
     	
         glfwSwapBuffers(window);
         glfwPollEvents();

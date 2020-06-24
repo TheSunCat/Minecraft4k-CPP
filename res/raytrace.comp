@@ -69,14 +69,11 @@ vec3 raytrace(in ivec2 pixel_coords)
                 
     double furthestHit = 20;
 
-    float closestHitX = -1;
-    float closestHitY = -1;
-    float closestHitZ = -1;
+    vec3 closestHit = vec3(-1);
                 
     bool blockHit = false;
                 
     vec3 rayOrigin = playerPos;
-
 
     for(int pass = 0; pass < 2; pass++)
     {
@@ -99,9 +96,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                     break;
             }
 
-            float rayDeltaX = rayDir.x / abs(delta);
-            float rayDeltaY = rayDir.y / abs(delta);
-            float rayDeltaZ = rayDir.z / abs(delta);
+            vec3 rayDelta = rayDir / abs(delta);
 
             float playerOffsetFromBlockEdge; // TODO confirm
             switch(axis)
@@ -123,20 +118,18 @@ vec3 raytrace(in ivec2 pixel_coords)
 
             float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
 
-            float rayX = rayOrigin.x + rayDeltaX * playerOffsetFromBlockEdge;
-            float rayY = rayOrigin.y + rayDeltaY * playerOffsetFromBlockEdge;
-            float rayZ = rayOrigin.z + rayDeltaZ * playerOffsetFromBlockEdge;
+            vec3 rayPos = rayOrigin.x + rayDelta * playerOffsetFromBlockEdge;
 
             if (delta < 0.0F)
             {
                 if (axis == AXIS_X)
-                    rayX--;
+                    rayPos.x--;
 
                 if (axis == AXIS_Y)
-                    rayY--;
+                    rayPos.y--;
 
                 if (axis == AXIS_Z)
-                    rayZ--;
+                    rayPos.z--;
             }
             
             bool skipRestOfIter = false;
@@ -144,27 +137,25 @@ vec3 raytrace(in ivec2 pixel_coords)
             // do the raycast
             while (rayTravelDist < furthestHit)
             {
-                int blockHitX = int(rayX - WORLD_SIZE);
-                int blockHitY = int(rayY - WORLD_HEIGHT);
-                int blockHitZ = int(rayZ - WORLD_SIZE);
+                ivec3 blockHit = ivec3(rayPos.x - WORLD_SIZE, rayPos.y - WORLD_HEIGHT, rayPos.z - WORLD_SIZE);
 
                 // if ray exits the world
-                if (blockHitX < 0 || blockHitY < -2 || blockHitZ < 0 || blockHitX >= WORLD_SIZE || blockHitY >= WORLD_HEIGHT || blockHitZ >= WORLD_SIZE)
+                if (blockHit.x < 0 || blockHit.y < -2 || blockHit.z < 0 || blockHit.x >= WORLD_SIZE || blockHit.y >= WORLD_HEIGHT || blockHit.z >= WORLD_SIZE)
                     break;
 
-                int blockHitID = blockHitY < 0 ? BLOCK_AIR : int(imageLoad(world, ivec3(blockHitX, blockHitY, blockHitZ)));
+                int blockHitID = blockHit.y < 0 ? BLOCK_AIR : int(imageLoad(world, blockHit));
 
                 if (blockHitID != BLOCK_AIR)
                 {
-                    int texFetchX = int(mod((rayX + rayZ) * TEXTURE_RES, TEXTURE_RES));
-                    int texFetchY = int(mod(rayY * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
+                    int texFetchX = int(mod((rayPos.x + rayPos.z) * TEXTURE_RES, TEXTURE_RES));
+                    int texFetchY = int(mod(rayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
 
                     if (axis == AXIS_Y)
                     {
-                        texFetchX = int(mod(rayX * TEXTURE_RES, TEXTURE_RES));
-                        texFetchY = int(mod(rayZ * TEXTURE_RES, TEXTURE_RES));
+                        texFetchX = int(mod(rayPos.x * TEXTURE_RES, TEXTURE_RES));
+                        texFetchY = int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES));
 
-                        if (rayDeltaY < 0.0F) // looking at the underside of a block
+                        if (rayDelta.y < 0.0F) // looking at the underside of a block
                             texFetchY += TEXTURE_RES * 2;
                     }
 
@@ -199,9 +190,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                         furthestHit = rayTravelDist;
 
 
-                        closestHitX = rayX;
-                        closestHitY = rayY;
-                        closestHitZ = rayZ;
+                        closestHit = rayPos;
                                         
                         switch(axis)
                         {
@@ -220,9 +209,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                     }
                 }
                 
-                rayX += rayDeltaX;
-                rayY += rayDeltaY;
-                rayZ += rayDeltaZ;
+                rayPos += rayDelta;
 
                 rayTravelDist += 1.0f / abs(delta);
             }
@@ -238,9 +225,7 @@ vec3 raytrace(in ivec2 pixel_coords)
             break;
                     
         // prepare for shadows pass
-        rayOrigin.x = closestHitX;
-        rayOrigin.y = closestHitY;
-        rayOrigin.z = closestHitZ;
+        rayOrigin = closestHit;
                     
         rayDir.x = lightDirection.x;
         rayDir.y = lightDirection.y;
@@ -274,7 +259,7 @@ void main() {
 
     pixel.xyz = raytrace(pixel_coords);
 
-    //pixel.xyz = vec3(imageLoad(world, ivec3(pixel_coords.x, 1, pixel_coords.y)) / 16.0f);
+    //pixel.xyz = imageLoad(world, ivec3(pixel_coords.x, 63, pixel_coords.y)).xyz / 16.0f;
     //pixel = texture(textureAtlas, vec2(pixel_coords.y / float(TEXTURE_RES * 3.0), pixel_coords.x / float(TEXTURE_RES * 16.0)));
 
     // output to a specific pixel in the image
