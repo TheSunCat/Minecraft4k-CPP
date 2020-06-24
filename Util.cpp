@@ -167,3 +167,26 @@ float clamp(float val, const float min, const float max)
 
     return val;
 }
+
+bool glError()
+{
+    const GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        std::cerr << "OpenGL error " << err << std::endl;
+        return true;
+    }
+
+    return false;
+}
+
+void GLAPIENTRY error_callback(GLenum source,
+			    const GLenum type,
+			    GLuint id,
+                const GLenum severity,
+			    GLsizei length,
+			    const GLchar* message,
+				const void* userParam) {
+    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+        type, severity, message);
+}

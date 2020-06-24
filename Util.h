@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <iostream>
+#include <glad/glad.h>
 
 constexpr float PI = 3.14159265359f;
 
@@ -44,3 +46,13 @@ namespace Perlin
 }
 
 float clamp(float val, const float min, const float max);
+
+bool glError();
+
+void GLAPIENTRY error_callback(GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar* message,
+    const void* userParam);

@@ -534,24 +534,21 @@ void init()
     }
     }
 
-
-	
     for (int i = 0; i < 12288; i++)
-        textureAtlas[i] = 0xCCCCCCCC;
-
+        textureAtlas[i] = i;
+	
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA, TEXTURE_RES * 3, TEXTURE_RES * 16);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
 	
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    //
-
 	
     //glGenTextures(1, &worldTexture);
     //glBindTexture(GL_TEXTURE_3D, worldTexture);
@@ -665,7 +662,8 @@ void run(GLFWwindow* window) {
         glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
         glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
     	
-        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA);
+        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
+        glError();
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
@@ -673,10 +671,13 @@ void run(GLFWwindow* window) {
 
         glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
 
+        glError();
     	
         glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
+        glError();
+    	
         glUseProgram(0);
     	
         // render the screen texture
@@ -818,6 +819,7 @@ int main(int argc, char** argv)
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
@@ -845,13 +847,14 @@ int main(int argc, char** argv)
         return -1;
     }
 
-
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(error_callback, nullptr);
+	
+    glViewport(0, 0, SCR_RES_X, SCR_RES_Y);
     glClearDepth(1);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_DEPTH_TEST);	
     glCullFace(GL_FRONT_AND_BACK);
     glClearColor(0, 0, 0, 1);
 
@@ -861,6 +864,7 @@ int main(int argc, char** argv)
     renderShader = Shader("screen", "screen");
     computeProgram = loadCompute("res/raytrace.comp");
 
+    
     glActiveTexture(GL_TEXTURE0);
     initBuffers(&vao, &buffer);
     initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
