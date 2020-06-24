@@ -1,7 +1,7 @@
 #version 430
 layout(local_size_x = 1, local_size_y = 1) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
-layout(binding = 3, rgba8ui) uniform uimage3D world;
+layout(r8ui, binding = 1) uniform uimage3D world;
 
 struct Camera
 {
@@ -175,7 +175,7 @@ vec3 raytrace(in ivec2 pixel_coords)
 //                            || (texFetchX == TEXTURE_RES - 1 || texFetchY % TEXTURE_RES == TEXTURE_RES - 1))))
 //                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
 //                    else
-                    textureColor = vec3(texture(textureAtlas, ivec2(texFetchX, texFetchY * TEXTURE_RES + blockHitID)) / 0xFF);
+                    textureColor = vec3(texture(textureAtlas, vec2(texFetchX/ float(TEXTURE_RES * 3.0), (texFetchY * TEXTURE_RES + blockHitID) / float(TEXTURE_RES * 16.0))));
 
                     int direction = 1;
                     if (delta > 0.0F)
@@ -272,9 +272,10 @@ void main() {
     // get index in global work group i.e x,y position
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 
-    //pixel.xyz = raytrace(pixel_coords);
+    pixel.xyz = raytrace(pixel_coords);
 
-    pixel = texture(textureAtlas, vec2(pixel_coords.x / float(TEXTURE_RES * 3.0), pixel_coords.y / float(TEXTURE_RES * 16.0)));
+    //pixel.xyz = vec3(imageLoad(world, ivec3(pixel_coords.x, 1, pixel_coords.y)) / 16.0f);
+    //pixel = texture(textureAtlas, vec2(pixel_coords.y / float(TEXTURE_RES * 3.0), pixel_coords.x / float(TEXTURE_RES * 16.0)));
 
     // output to a specific pixel in the image
     imageStore(img_output, pixel_coords, pixel);

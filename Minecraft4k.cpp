@@ -24,7 +24,7 @@ struct Controller
     bool firstMouse = true;
 };
 
-//#define CLASSIC;
+#define CLASSIC
 
 Controller controller{};
 
@@ -109,7 +109,7 @@ glm::vec3 sunColor;
 glm::vec3 ambColor;
 glm::vec3 skyColor;
 
-int world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
+uint8_t world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
 
 unsigned char hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
@@ -216,7 +216,7 @@ void init()
                 if (x == WORLD_SIZE)
                     continue;
 
-                world[x][y][z] = block;
+                setBlock(x, y, z, block);
             }
         }
 }
@@ -546,17 +546,17 @@ void init()
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
 	
-	
-    //glGenTextures(1, &worldTexture);
-    //glBindTexture(GL_TEXTURE_3D, worldTexture);
-    //glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RGB, GL_UNSIGNED_BYTE, world);
+	glGenTextures(1, &worldTexture);
+	glBindTexture(GL_TEXTURE_3D, worldTexture);
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, world);
+	glBindTexture(GL_TEXTURE_3D, 0);
 }
 
 void run(GLFWwindow* window) {
     long startTime = currentTime();
 
     while (!glfwWindowShouldClose(window)) {
-        long time = currentTime();
+	    const long time = currentTime();
 
         if (needsResUpdate) {
             updateScreenResolution();
@@ -585,10 +585,10 @@ void run(GLFWwindow* window) {
             ambColor = lerp(AC_TWILIGHT, AC_NIGHT, lightDirection.y);
             skyColor = lerp(YC_TWILIGHT, YC_NIGHT, lightDirection.y);
         }
-        
-            
-        float inputX = controller.right * 0.02F;
-        float inputZ = controller.forward * 0.02F;
+
+
+	    const float inputX = controller.right * 0.02F;
+	    const float inputZ = controller.forward * 0.02F;
         
         playerVelocity.x *= 0.5F;
         playerVelocity.y *= 0.99F;
@@ -662,6 +662,9 @@ void run(GLFWwindow* window) {
         //glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
         glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
+
+        glBindTexture(GL_TEXTURE_3D, worldTexture);
+        glBindImageTexture(1, worldTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R8UI);
     	glError();
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
@@ -849,7 +852,7 @@ int main(int argc, char** argv)
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
 	
-    glViewport(0, 0, SCR_RES_X, SCR_RES_Y);
+    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glClearDepth(1);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_TRUE);
