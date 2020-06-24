@@ -524,18 +524,15 @@ void init()
 
                 // multiply tint by the grayscale detail
                 const int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
-                    (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
-                    (tint >> 8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
-                    (tint & 0xFF) * gsd_constexpr / 0xFF;
+			                    (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
+			                    (tint >>  8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
+			                    (tint & 0xFF      ) * gsd_constexpr / 0xFF << 0;
 
                 // write pixel to the texture atlas
                 textureAtlas[x + y * TEXTURE_RES + blockType * (TEXTURE_RES * TEXTURE_RES) * 3] = col;
         }
     }
     }
-
-    for (int i = 0; i < 12288; i++)
-        textureAtlas[i] = i;
 	
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
@@ -545,8 +542,8 @@ void init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, textureAtlas);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 3, TEXTURE_RES * 16);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
 	
 	
@@ -662,8 +659,10 @@ void run(GLFWwindow* window) {
         glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
         glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
     	
-        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
-        glError();
+        //glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
+        glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
+        glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
+    	glError();
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
