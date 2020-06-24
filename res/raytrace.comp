@@ -1,6 +1,8 @@
 #version 430
 layout(local_size_x = 1, local_size_y = 1) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
+layout(binding = 2, rgba8ui) uniform uimage2D textureAtlas;
+layout(binding = 3, rgba8ui) uniform uimage3D world;
 
 struct Camera
 {
@@ -12,9 +14,6 @@ struct Camera
 uniform readonly vec2 screenSize;
 uniform readonly Camera camera;
 uniform readonly vec3 playerPos;
-
-uniform readonly sampler2D textureAtlas;
-uniform readonly sampler3D world;
 
 vec3 lightDirection = vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
@@ -152,7 +151,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                 if (blockHitX < 0 || blockHitY < -2 || blockHitZ < 0 || blockHitX >= WORLD_SIZE || blockHitY >= WORLD_HEIGHT || blockHitZ >= WORLD_SIZE)
                     break;
 
-                int blockHitID = blockHitY < 0 ? BLOCK_AIR : int(texture(world, vec3(blockHitX, blockHitY, blockHitZ)));
+                int blockHitID = blockHitY < 0 ? BLOCK_AIR : int(imageLoad(world, ivec3(blockHitX, blockHitY, blockHitZ)));
 
                 if (blockHitID != BLOCK_AIR)
                 {
@@ -175,7 +174,7 @@ vec3 raytrace(in ivec2 pixel_coords)
 //                            || (texFetchX == TEXTURE_RES - 1 || texFetchY % TEXTURE_RES == TEXTURE_RES - 1))))
 //                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
 //                    else
-                    textureColor = vec3(texture(textureAtlas, vec2(texFetchX, + texFetchY * TEXTURE_RES + blockHitID)));
+                    textureColor = vec3(imageLoad(textureAtlas, ivec2(texFetchX, texFetchY * TEXTURE_RES + blockHitID)));
 
                     int direction = 1;
                     if (delta > 0.0F)
@@ -272,7 +271,9 @@ void main() {
     // get index in global work group i.e x,y position
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 
-    pixel.xyz = raytrace(pixel_coords);
+    //pixel.xyz = raytrace(pixel_coords);
+
+    pixel = vec4(imageLoad(textureAtlas, ivec2(pixel_coords.x, pixel_coords.y)));
 
     // output to a specific pixel in the image
     imageStore(img_output, pixel_coords, pixel);

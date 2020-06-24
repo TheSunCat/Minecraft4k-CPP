@@ -534,20 +534,28 @@ void init()
     }
     }
 
-    glGenTextures(1, &textureAtlasTex);
-    glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
 
 	
-    glGenTextures(1, &worldTexture);
-    glBindTexture(GL_TEXTURE_3D, worldTexture);
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RGB, GL_UNSIGNED_BYTE, world);
+    for (int i = 0; i < 12288; i++)
+        textureAtlas[i] = 0xCCCCCCCC;
+
+    glGenTextures(1, &textureAtlasTex);
+    glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, TEXTURE_RES * 3, TEXTURE_RES * 16, 0, GL_RGB, GL_UNSIGNED_BYTE, textureAtlas);
+    glBindTexture(GL_TEXTURE_2D, 0);
+	
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    //
+
+	
+    //glGenTextures(1, &worldTexture);
+    //glBindTexture(GL_TEXTURE_3D, worldTexture);
+    //glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RGB, GL_UNSIGNED_BYTE, world);
 }
 
 void run(GLFWwindow* window) {
@@ -654,18 +662,16 @@ void run(GLFWwindow* window) {
     	
         glUseProgram(computeProgram);
 
-        //glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
+        glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
         glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
     	
-        
+        glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
+    	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.FOV"), 90);
 
         glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
-    	
-        glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), textureAtlasTex);
-        glUniform1i(glGetUniformLocation(computeProgram, "world"), worldTexture);
 
     	
         glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
