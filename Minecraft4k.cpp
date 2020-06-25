@@ -568,6 +568,10 @@ void init()
 
 void collidePlayer()
 {
+    if (controller.jump) {
+        playerVelocity.y = -0.1F;
+        //return;
+    }
     // check for movement on each axis individually?
     for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
         if (false) {
@@ -683,9 +687,7 @@ void run(GLFWwindow* window) {
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
         glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
 
-        glBindTexture(GL_TEXTURE_3D, worldTexture);
-        glBindImageTexture(1, worldTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8UI);
-    	glError();
+        glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
@@ -693,13 +695,9 @@ void run(GLFWwindow* window) {
 
         glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
         glUniform3fv(glGetUniformLocation(computeProgram, "lightDirection"), 1, &lightDirection[0]);
-
-        glError();
     	
         glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-        glError();
     	
         glUseProgram(0);
     	
