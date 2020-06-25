@@ -30,7 +30,7 @@ Controller controller{};
 
 bool needsResUpdate = true;
 
-int SCR_DETAIL = 1;
+int SCR_DETAIL = 2;
 
 int SCR_RES_X = 107 * pow(2, SCR_DETAIL);
 int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
@@ -156,48 +156,53 @@ static glm::vec3 lerp(const glm::vec3& start, const glm::vec3& end, const float 
     return glm::vec3(start + (start - end) * t);
 }
 
+void initTexture(GLuint* texture, const int width, const int height);
+
 void updateScreenResolution(GLFWwindow* window)
 {
     SCR_RES_X = 107 * pow(2, SCR_DETAIL);
     SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
-    // auto generated code - do not delete
+
     std::string title = "Minecraft4k";
 
-    switch (SCR_RES_X) {
-    case 6:
+    switch (SCR_DETAIL) {
+    case -4:
         title += " on battery-saving mode";
         break;
-    case 13:
+    case -3:
         title += " on a potato";
         break;
-    case 26:
+    case -2:
         title += " on an undocked switch";
         break;
-    case 53:
+    case -1:
         title += " on a TI-84";
         break;
-    case 107:
+    case 0:
         title += " on an Atari 2600";
         break;
-    case 428:
+    case 2:
         title += " at SD";
         break;
-    case 856:
+    case 3:
         title += " at HD";
         break;
-    case 1712:
+    case 4:
         title += " at Full HD";
         break;
-    case 3424:
+    case 5:
         title += " at 4K";
         break;
-    case 6848:
+    case 6:
         title += " on a NASA supercomputer";
         break;
     }
 
     glfwSetWindowTitle(window, title.c_str());
+
+    glDeleteTextures(1, &screenTexture);
+    initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
 
     needsResUpdate = false;
 }
@@ -772,6 +777,15 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
             break;
         case GLFW_KEY_SPACE:
             controller.jump = true;
+            break;
+        case GLFW_KEY_COMMA:
+            SCR_DETAIL--;
+            needsResUpdate = true;
+            break;
+        case GLFW_KEY_PERIOD:
+            SCR_DETAIL++;
+            needsResUpdate = true;
+            break;
     	}
     } else // action == GLFW_RELEASE
     {
@@ -819,8 +833,8 @@ void initBuffers(GLuint* vao, GLuint* buffer) {
 void initTexture(GLuint* texture, const int width, const int height) {
     glGenTextures(1, texture);
     glBindTexture(GL_TEXTURE_2D, *texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
