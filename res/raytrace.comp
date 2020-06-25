@@ -16,7 +16,7 @@ uniform readonly vec3 playerPos;
 
 uniform sampler2D textureAtlas;
 
-vec3 lightDirection = vec3(0.866025404f, -0.866025404f, 0.866025404f);
+uniform vec3 lightDirection = vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
 vec3 FOG_COLOR = vec3(1);
 vec3 sunColor = vec3(1);
@@ -166,9 +166,8 @@ vec3 raytrace(in ivec2 pixel_coords)
 //                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
 //                    else
                     textureColor = vec3(texture(textureAtlas, vec2(
-texFetchX/ float(TEXTURE_RES), 
-(texFetchY + TEXTURE_RES * 3.0 * blockHitID) / float(TEXTURE_RES * 48.0)
-)));
+                                        texFetchX/ float(TEXTURE_RES), 
+                                        (texFetchY + TEXTURE_RES * 3.0 * blockHitID) / float(TEXTURE_RES * 48.0))));
 
                     int direction = 1;
                     if (delta > 0.0F)
@@ -189,7 +188,7 @@ texFetchX/ float(TEXTURE_RES),
                             skipRestOfIter = true;
                             break;
                         }
-                                    
+                        
                         furthestHit = rayTravelDist;
 
 
@@ -244,7 +243,7 @@ texFetchX/ float(TEXTURE_RES),
 
         vec3 lightColor = lerp(ambColor, sunColor, lightIntensity);
 
-        //pixelColor = pixelColor * lightColor;
+        pixelColor = pixelColor * lightColor;
     } else {
         if(sunDot > 0.99f)
             pixelColor = vec3(sunColor);

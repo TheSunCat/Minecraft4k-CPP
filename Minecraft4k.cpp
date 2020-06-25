@@ -554,6 +554,52 @@ void init()
 	glBindTexture(GL_TEXTURE_3D, 0);
 }
 
+void collidePlayer()
+{
+    // check for movement on each axis individually?
+    for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
+        if (false) {
+        OUTER:axisIndex++;
+            if (axisIndex >= 3)
+                return;
+        }
+        const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2),
+									             playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2),
+											     playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2));
+
+        for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
+            // magic
+            const glm::ivec3 colliderBlockPos = glm::ivec3((newPlayerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE,
+											               (newPlayerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT,
+											               (newPlayerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE);
+
+            if (colliderBlockPos.y < 0)
+                continue;
+
+            // check collision with world bounds and world blocks
+            if (colliderBlockPos.x < 0 || colliderBlockPos.z < 0
+                || colliderBlockPos.x >= WORLD_SIZE || colliderBlockPos.y >= WORLD_HEIGHT || colliderBlockPos.z >= WORLD_SIZE
+                || getBlock(colliderBlockPos.x, colliderBlockPos.y, colliderBlockPos.z) != BLOCK_AIR) {
+
+                if (axisIndex != 2) // not checking for vertical movement
+                    goto OUTER; // movement is invalid
+
+                // if we're falling, colliding, and we press space
+                if (controller.jump && playerVelocity.y > 0.0F) {
+                    playerVelocity.y = -0.1F; // jump
+                    return;
+                }
+
+                // stop vertical movement
+                playerVelocity.y = 0.0F;
+                return;
+            }
+        }
+
+        playerPos = newPlayerPos;
+    }
+}
+
 void run(GLFWwindow* window) {
     long startTime = currentTime();
 
@@ -570,10 +616,10 @@ void run(GLFWwindow* window) {
         sinPitch = sin(cameraPitch);
         cosPitch = cos(cameraPitch);
 
-        lightDirection.y = sin(time / 10000.0);
+        lightDirection.y = sin(time / 10000000.0);
 
         lightDirection.x = 0; //lightDirection.y * 0.5f;
-        lightDirection.z = cos(time / 10000.0);
+        lightDirection.z = cos(time / 10000000.0);
 
 
         if (lightDirection.y < 0.0f)
@@ -601,54 +647,15 @@ void run(GLFWwindow* window) {
         playerVelocity.y += 0.003F; // gravity
 
 
-        // check for movement on each axis individually?
-		OUTER:
-	    for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-	        float newPlayerX = playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2);
-	        float newPlayerY = playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2);
-	        float newPlayerZ = playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2);
-
-	        for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-	            // magic
-	            int colliderBlockX = int(newPlayerX + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-	            int colliderBlockY = int(newPlayerY + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-	            int colliderBlockZ = int(newPlayerZ + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-
-	            if (colliderBlockY < 0)
-	                continue;
-
-	            // check collision with world bounds and world blocks
-	            if (colliderBlockX < 0 || colliderBlockZ < 0
-	                || colliderBlockX >= WORLD_SIZE || colliderBlockY >= WORLD_HEIGHT || colliderBlockZ >= WORLD_SIZE
-	                || getBlock(colliderBlockX, colliderBlockY, colliderBlockZ) != BLOCK_AIR) {
-
-	                if (axisIndex != 2) // not checking for vertical movement
-	                    goto NEXT; // movement is invalid
-
-	                // if we're falling, colliding, and we press space
-	                if (controller.jump && playerVelocity.y > 0.0F) {
-	                    playerVelocity.y = -0.1F; // jump
-	                    goto OUTER;
-	                }
-
-	                // stop vertical movement
-	                playerVelocity.y = 0.0F;
-	                goto OUTER;
-	            }
-	        }
-
-	        playerPos.x = newPlayerX;
-	        playerPos.y = newPlayerY;
-	        playerPos.z = newPlayerZ;
-	    }
-
-    	NEXT:
+        collidePlayer();
+    	
+    	
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
             int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
             int magicZ = int(playerPos.z + ( colliderIndex >> 1  & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
-            // check if hovered block is within world boundaries
+            // set block to air if inside player
             if (magicX >= 0 && magicY >= 0 && magicZ >= 0 && magicX < WORLD_SIZE && magicY < WORLD_HEIGHT && magicZ < WORLD_SIZE)
                 setBlock(magicX, magicY, magicZ, BLOCK_AIR);
         }
@@ -674,6 +681,7 @@ void run(GLFWwindow* window) {
         glUniform1f(glGetUniformLocation(computeProgram, "camera.FOV"), 90);
 
         glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
+        glUniform3fv(glGetUniformLocation(computeProgram, "lightDirection"), 1, &lightDirection[0]);
 
         glError();
     	
