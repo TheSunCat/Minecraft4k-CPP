@@ -24,7 +24,7 @@ struct Controller
     bool firstMouse = true;
 };
 
-#define CLASSIC
+//#define CLASSIC
 
 Controller controller{};
 
@@ -122,6 +122,12 @@ static void setBlock(const int x, const int y, const int z, const int block)
 static int getBlock(const int x, const int y, const int z)
 {
     return world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT];
+}
+
+static bool isWithinWorld(const glm::vec3& pos)
+{
+    return pos.x >= 0.0f && pos.y >= 0.0f && pos.z >= 0.0f &&
+        pos.x < WORLD_SIZE&& pos.y < WORLD_HEIGHT&& pos.z < WORLD_SIZE;
 }
 
 static void fillBox(const unsigned char blockId, const glm::vec3& pos0,
@@ -577,8 +583,7 @@ void collidePlayer()
                 continue;
 
             // check collision with world bounds and world blocks
-            if (colliderBlockPos.x < 0 || colliderBlockPos.z < 0
-                || colliderBlockPos.x >= WORLD_SIZE || colliderBlockPos.y >= WORLD_HEIGHT || colliderBlockPos.z >= WORLD_SIZE
+            if (!isWithinWorld(colliderBlockPos)
                 || getBlock(colliderBlockPos.x, colliderBlockPos.y, colliderBlockPos.z) != BLOCK_AIR) {
 
                 if (axisIndex != 2) // not checking for vertical movement
@@ -646,8 +651,7 @@ void run(GLFWwindow* window) {
         playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
         playerVelocity.y += 0.003F; // gravity
 
-
-        collidePlayer();
+		collidePlayer();
     	
     	
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
@@ -656,7 +660,7 @@ void run(GLFWwindow* window) {
             int magicZ = int(playerPos.z + ( colliderIndex >> 1  & 1) * 0.6F - 0.3F) - WORLD_SIZE;
 
             // set block to air if inside player
-            if (magicX >= 0 && magicY >= 0 && magicZ >= 0 && magicX < WORLD_SIZE && magicY < WORLD_HEIGHT && magicZ < WORLD_SIZE)
+            if (isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
                 setBlock(magicX, magicY, magicZ, BLOCK_AIR);
         }
 
@@ -736,8 +740,8 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     controller.lastMousePos.x = xPos;
     controller.lastMousePos.y = yPos;
 
-    cameraYaw += xOffset / 100;
-    cameraPitch += yOffset / 100;
+    cameraYaw += xOffset / 1000.0f;
+    cameraPitch += yOffset / 1000.0f;
 
 	// TODO loop yaw around
     cameraPitch = clamp(cameraPitch, -90.0f, 90.0f);
