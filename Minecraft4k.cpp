@@ -60,13 +60,13 @@ constexpr int TEXTURE_RES = 16;
 constexpr int WORLD_SIZE = 64;
 constexpr int WORLD_HEIGHT = 64;
 
-constexpr unsigned char BLOCK_AIR = 0;
-constexpr unsigned char BLOCK_GRASS = 1;
-constexpr unsigned char BLOCK_DEFAULT_DIRT = 2;
-constexpr unsigned char BLOCK_STONE = 4;
-constexpr unsigned char BLOCK_BRICKS = 5;
-constexpr unsigned char BLOCK_WOOD = 7;
-constexpr unsigned char BLOCK_LEAVES = 8;
+constexpr uint8_t BLOCK_AIR = 0;
+constexpr uint8_t BLOCK_GRASS = 1;
+constexpr uint8_t BLOCK_DEFAULT_DIRT = 2;
+constexpr uint8_t BLOCK_STONE = 4;
+constexpr uint8_t BLOCK_BRICKS = 5;
+constexpr uint8_t BLOCK_WOOD = 7;
+constexpr uint8_t BLOCK_LEAVES = 8;
 
 // COLORS
 constexpr glm::vec3 FOG_COLOR = glm::vec3(1);
@@ -111,17 +111,18 @@ glm::vec3 skyColor;
 
 uint8_t world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
 
-unsigned char hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
+uint8_t hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
 
-static void setBlock(const int x, const int y, const int z, const int block)
+#define getw x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT
+static void setBlock(const int x, const int y, const int z, const uint8_t block)
 {
-    world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT] = block;
+    world[getw] = block;
 }
 
-static int getBlock(const int x, const int y, const int z)
+static uint8_t getBlock(const int x, const int y, const int z)
 {
-    return world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT];
+    return world[getw];
 }
 
 static bool isWithinWorld(const glm::vec3& pos)
@@ -130,7 +131,7 @@ static bool isWithinWorld(const glm::vec3& pos)
         pos.x < WORLD_SIZE&& pos.y < WORLD_HEIGHT&& pos.z < WORLD_SIZE;
 }
 
-static void fillBox(const unsigned char blockId, const glm::vec3& pos0,
+static void fillBox(const uint8_t blockId, const glm::vec3& pos0,
     const glm::vec3& pos1, const bool replace)
 {
     for (int x = pos0.x; x < pos1.x; x++)
@@ -155,7 +156,7 @@ static glm::vec3 lerp(const glm::vec3& start, const glm::vec3& end, const float 
     return glm::vec3(start + (start - end) * t);
 }
 
-void updateScreenResolution()
+void updateScreenResolution(GLFWwindow* window)
 {
     SCR_RES_X = 107 * pow(2, SCR_DETAIL);
     SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
@@ -196,7 +197,7 @@ void updateScreenResolution()
         break;
     }
 
-    //TODO frame.setTitle(title);
+    glfwSetWindowTitle(window, title.c_str());
 
     needsResUpdate = false;
 }
@@ -212,7 +213,7 @@ void init()
     for (int x = WORLD_SIZE; x >= 0; x--) {
         for (int y = 0; y < WORLD_HEIGHT; y++) {
             for (int z = 0; z < WORLD_SIZE; z++) {
-                unsigned char block;
+                uint8_t block;
 
                 if (y > maxTerrainHeight + rand.nextInt(8))
                     block = rand.nextInt(8) + 1;
@@ -237,7 +238,7 @@ void init()
 
             for (int y = terrainHeight; y < WORLD_HEIGHT; y++)
             {
-                unsigned char block;
+                uint8_t block;
 
                 if (y > terrainHeight + stoneDepth)
                     block = BLOCK_STONE;
@@ -265,9 +266,7 @@ void init()
 
                 for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
-                    unsigned char block = BLOCK_WOOD;
-
-                    setBlock(treeX, y, treeZ, block);
+                    setBlock(treeX, y, treeZ, BLOCK_WOOD);
                 }
 
                 // foliage
@@ -556,6 +555,13 @@ void init()
 	
 	glGenTextures(1, &worldTexture);
 	glBindTexture(GL_TEXTURE_3D, worldTexture);
+
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, world);
 	glBindTexture(GL_TEXTURE_3D, 0);
 }
@@ -612,7 +618,7 @@ void run(GLFWwindow* window) {
 	    const long time = currentTime();
 
         if (needsResUpdate) {
-            updateScreenResolution();
+            updateScreenResolution(window);
         }
         
 
@@ -640,19 +646,20 @@ void run(GLFWwindow* window) {
         }
 
 
-	    const float inputX = controller.right * 0.02F;
-	    const float inputZ = controller.forward * 0.02F;
         
+        const float inputX = controller.right * 0.02F;
+        const float inputZ = controller.forward * 0.02F;
+
         playerVelocity.x *= 0.5F;
         playerVelocity.y *= 0.99F;
         playerVelocity.z *= 0.5F;
-        
+
         playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
         playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
         playerVelocity.y += 0.003F; // gravity
 
-		collidePlayer();
-    	
+
+        collidePlayer();
     	
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
@@ -677,7 +684,7 @@ void run(GLFWwindow* window) {
         glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
 
         glBindTexture(GL_TEXTURE_3D, worldTexture);
-        glBindImageTexture(1, worldTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_R8UI);
+        glBindImageTexture(1, worldTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R8UI);
     	glError();
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
@@ -749,7 +756,7 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
 
 void key_callback(GLFWwindow*, const int key, const int scancode, const int action, const int mods)
 {
-    if(action == GLFW_PRESS)
+    if(action == GLFW_PRESS || action == GLFW_REPEAT)
     {
     	switch(key)
     	{

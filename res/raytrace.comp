@@ -34,6 +34,8 @@ const int TEXTURE_RES = 16;
     
 const int BLOCK_AIR = 0;
 
+const float RENDER_DIST = 100.0f;
+
 float length2(vec3 a)
 {
     return a.x * a.x + a.y * a.y + a.z * a.z;
@@ -67,7 +69,7 @@ vec3 raytrace(in ivec2 pixel_coords)
     float fogIntensity = 0.0f;
     float lightIntensity = 1.0f;
                 
-    double furthestHit = 20;
+    double furthestHit = RENDER_DIST;
 
     vec3 closestHit = vec3(-1);
                 
@@ -178,7 +180,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                         if(pass == 0) // not shadows
                         {
                             pixelColor = textureColor;
-                            fogIntensity = (rayTravelDist / 20);
+                            fogIntensity = (rayTravelDist / RENDER_DIST);
                             wasBlockHit = true;
                         }
                         else
@@ -233,7 +235,7 @@ vec3 raytrace(in ivec2 pixel_coords)
         rayDir.y = lightDirection.y;
         rayDir.z = lightDirection.z;
                     
-        furthestHit = 20;
+        furthestHit = RENDER_DIST;
     }
 
                 
@@ -262,7 +264,7 @@ void main() {
 
     pixel.xyz = raytrace(pixel_coords);
 
-    //pixel.xyz = imageLoad(world, ivec3(pixel_coords.x, 63, pixel_coords.y)).xyz / 16.0f;
+    //pixel.xyz = imageLoad(world, ivec3(pixel_coords.x, 63, pixel_coords.y)).xyz / 8.0f;
     //pixel = texture(textureAtlas, vec2(pixel_coords.x / float(TEXTURE_RES), pixel_coords.y / float(TEXTURE_RES * 48.0)));
 
     // output to a specific pixel in the image
