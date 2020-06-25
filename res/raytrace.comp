@@ -71,20 +71,19 @@ vec3 raytrace(in ivec2 pixel_coords)
 
     vec3 closestHit = vec3(-1);
                 
-    bool blockHit = false;
+    bool wasBlockHit = false;
                 
     vec3 rayOrigin = playerPos;
 
     for(int pass = 0; pass < 2; pass++)
     {
-        for (int axis = 0; axis < 3; axis++)
+        for(int axis = 0; axis < 3; axis++)
         {
             // align ray to block edge on this axis
             // and calc ray deltas
             float delta;
             switch(axis)
             {
-                default:
                 case AXIS_X:
                     delta = rayDir.x;
                     break;
@@ -118,7 +117,7 @@ vec3 raytrace(in ivec2 pixel_coords)
 
             float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
 
-            vec3 rayPos = rayOrigin.x + rayDelta * playerOffsetFromBlockEdge;
+            vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
 
             if (delta < 0.0F)
             {
@@ -161,12 +160,15 @@ vec3 raytrace(in ivec2 pixel_coords)
 
                     vec3 textureColor;
 //                    if(pass == 0 &&
-//                            (blockHitX == hoveredBlockPosX && blockHitY == hoveredBlockPosY && blockHitZ == hoveredBlockPosZ &&
+//                            (blockHit.x == hoveredBlockPosX && blockHit.y == hoveredBlockPosY && blockHit.z == hoveredBlockPosZ &&
 //                            (  (texFetchX == 0               || texFetchY % TEXTURE_RES == 0)
 //                            || (texFetchX == TEXTURE_RES - 1 || texFetchY % TEXTURE_RES == TEXTURE_RES - 1))))
 //                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
 //                    else
-                    textureColor = vec3(texture(textureAtlas, vec2(texFetchX/ float(TEXTURE_RES * 3.0), (texFetchY * TEXTURE_RES + blockHitID) / float(TEXTURE_RES * 16.0))));
+                    textureColor = vec3(texture(textureAtlas, vec2(
+texFetchX/ float(TEXTURE_RES), 
+(texFetchY + TEXTURE_RES * 3.0 * blockHitID) / float(TEXTURE_RES * 48.0)
+)));
 
                     int direction = 1;
                     if (delta > 0.0F)
@@ -178,6 +180,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                         {
                             pixelColor = textureColor;
                             fogIntensity = (rayTravelDist / 20);
+                            wasBlockHit = true;
                         }
                         else
                         { // shadows
@@ -217,7 +220,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                 break;
         }
                     
-        if(!blockHit) // don't do sky shadows
+        if(!wasBlockHit) // don't do sky shadows
             break;
                     
         // TODO why?
@@ -233,14 +236,15 @@ vec3 raytrace(in ivec2 pixel_coords)
                     
         furthestHit = 20;
     }
+
                 
-    if(blockHit)
+    if(wasBlockHit)
     {
         pixelColor = lerp(pixelColor, FOG_COLOR, fogIntensity);
 
         vec3 lightColor = lerp(ambColor, sunColor, lightIntensity);
 
-        pixelColor = cross(pixelColor, lightColor);
+        //pixelColor = pixelColor * lightColor;
     } else {
         if(sunDot > 0.99f)
             pixelColor = vec3(sunColor);
@@ -260,7 +264,7 @@ void main() {
     pixel.xyz = raytrace(pixel_coords);
 
     //pixel.xyz = imageLoad(world, ivec3(pixel_coords.x, 63, pixel_coords.y)).xyz / 16.0f;
-    //pixel = texture(textureAtlas, vec2(pixel_coords.y / float(TEXTURE_RES * 3.0), pixel_coords.x / float(TEXTURE_RES * 16.0)));
+    //pixel = texture(textureAtlas, vec2(pixel_coords.x / float(TEXTURE_RES), pixel_coords.y / float(TEXTURE_RES * 48.0)));
 
     // output to a specific pixel in the image
     imageStore(img_output, pixel_coords, pixel);

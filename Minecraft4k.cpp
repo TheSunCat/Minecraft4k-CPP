@@ -729,7 +729,7 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     controller.lastMousePos.y = yPos;
 
     cameraYaw += xOffset / 100;
-    cameraPitch += yOffset / -100;
+    cameraPitch += yOffset / 100;
 
 	// TODO loop yaw around
     cameraPitch = clamp(cameraPitch, -90.0f, 90.0f);
