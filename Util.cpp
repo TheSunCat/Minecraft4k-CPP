@@ -7,7 +7,7 @@
 
 long long currentTime()
 {
-    return std::chrono::system_clock::now().time_since_epoch().count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
 uint64_t Random::seedUniquifier = 8682522807148012;

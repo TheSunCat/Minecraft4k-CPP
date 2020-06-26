@@ -85,7 +85,7 @@ constexpr glm::vec3 SC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
 constexpr glm::vec3 AC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
 constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
 
-long deltaTime = 0;
+float deltaTime = 16.666f; // 60fps
 
 glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
                                 WORLD_HEIGHT + 1, 
@@ -161,6 +161,11 @@ void initTexture(GLuint* texture, const int width, const int height);
 
 void updateScreenResolution(GLFWwindow* window)
 {
+    if (SCR_DETAIL < -4)
+        SCR_DETAIL = -4;
+    if (SCR_DETAIL > 6)
+        SCR_DETAIL = 6;
+
     SCR_RES_X = 107 * pow(2, SCR_DETAIL);
     SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
@@ -574,10 +579,6 @@ void init()
 
 void collidePlayer()
 {
-    if (controller.jump) {
-        playerVelocity.y = -0.1F;
-        //return;
-    }
     // check for movement on each axis individually?
     for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
         if (false) {
@@ -622,10 +623,14 @@ void collidePlayer()
 }
 
 void run(GLFWwindow* window) {
-    long startTime = currentTime();
+    long long lastTime = currentTime() - 16;
+    long long lastUpdateTime = currentTime();
 
     while (!glfwWindowShouldClose(window)) {
-        const long time = currentTime();
+        const long long startTime = currentTime();
+        deltaTime = startTime - lastTime;
+        lastTime = startTime;
+
 
         if (needsResUpdate) {
             updateScreenResolution(window);
@@ -637,10 +642,10 @@ void run(GLFWwindow* window) {
         sinPitch = sin(cameraPitch);
         cosPitch = cos(cameraPitch);
 
-        lightDirection.y = sin(time / 10000000.0);
+        lightDirection.y = sin(startTime / 100000.0);
 
-        lightDirection.x = 0; //lightDirection.y * 0.5f;
-        lightDirection.z = cos(time / 10000000.0);
+        lightDirection.x = lightDirection.y * 0.5f;
+        lightDirection.z = cos(startTime / 100000.0);
 
 
         if (lightDirection.y < 0.0f)
@@ -654,31 +659,34 @@ void run(GLFWwindow* window) {
             ambColor = lerp(AC_TWILIGHT, AC_NIGHT, lightDirection.y);
             skyColor = lerp(YC_TWILIGHT, YC_NIGHT, lightDirection.y);
         }
-
-
         
-        const float inputX = controller.right * 0.02F;
-        const float inputZ = controller.forward * 0.02F;
+        while (currentTime() - lastUpdateTime > 10)
+        {
+            const float inputX = controller.right * 0.02F;
+            const float inputZ = controller.forward * 0.02F;
 
-        playerVelocity.x *= 0.5F;
-        playerVelocity.y *= 0.99F;
-        playerVelocity.z *= 0.5F;
+            playerVelocity.x *= 0.5F;
+            playerVelocity.y *= 0.99F;
+            playerVelocity.z *= 0.5F;
 
-        playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
-        playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
-        playerVelocity.y += 0.003F; // gravity
+            playerVelocity.x += sinYaw * inputZ + cosYaw * inputX;
+            playerVelocity.z += cosYaw * inputZ - sinYaw * inputX;
+            playerVelocity.y += 0.003F; // gravity
 
 
-        collidePlayer();
-        
-        for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-            int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-            int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-            int magicZ = int(playerPos.z + ( colliderIndex >> 1  & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+            collidePlayer();
 
-            // set block to air if inside player
-            if (isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
-                setBlock(magicX, magicY, magicZ, BLOCK_AIR);
+            for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
+                int magicX = int(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+                int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
+                int magicZ = int(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+
+                // set block to air if inside player
+                if (isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
+                    setBlock(magicX, magicY, magicZ, BLOCK_AIR);
+            }
+
+            lastUpdateTime += 10;
         }
 
         // Compute the raytracing!
@@ -692,8 +700,10 @@ void run(GLFWwindow* window) {
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
         computeShader.setInt("textureAtlas", 0);
         
-        computeShader.setFloat("camera.yaw", cameraYaw);
-        computeShader.setFloat("camera.pitch", cameraPitch);
+        computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
+        computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
+        computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
+        computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
         computeShader.setFloat("camera.FOV", 90);
 
         computeShader.setVec3("playerPos", playerPos);
@@ -724,7 +734,7 @@ void run(GLFWwindow* window) {
         glDisableVertexAttribArray(0);
 
         glUseProgram(0);
-        
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -750,8 +760,8 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     controller.lastMousePos.x = xPos;
     controller.lastMousePos.y = yPos;
 
-    cameraYaw += xOffset / 1000.0f;
-    cameraPitch += yOffset / 1000.0f;
+    cameraYaw += xOffset / 500.0f;
+    cameraPitch += yOffset / 500.0f;
 
     if(fabs(cameraYaw) > PI)
     {

@@ -5,8 +5,10 @@ layout(r8ui, binding = 1) uniform uimage3D world;
 
 struct Camera
 {
-    float yaw;
-    float pitch;
+    float cosYaw;
+    float cosPitch;
+    float sinYaw;
+    float sinPitch;
     float FOV;
 };
 
@@ -43,17 +45,11 @@ vec3 raytrace(in ivec2 pixel_coords)
 {
     float frustumRayX = ((pixel_coords.x - (screenSize.x / 2)) / camera.FOV) /  screenSize.x * 214.0f;
     float frustumRayY = ((pixel_coords.y - (screenSize.y / 2)) / camera.FOV) / screenSize.y * 120.0f;
-                
-    float cosPitch = cos(camera.pitch);
-    float sinPitch = sin(camera.pitch);
-
-    float cosYaw = cos(camera.yaw);
-    float sinYaw = sin(camera.yaw);
 
     // rotate frustum space to world space
-    float temp = cosPitch + frustumRayY * sinPitch;
+    float temp = camera.cosPitch + frustumRayY * camera.sinPitch;
 
-    vec3 rayDir = vec3(frustumRayX * cosYaw + temp * sinYaw, frustumRayY * cosPitch - sinPitch, temp * cosYaw - frustumRayX * sinYaw);
+    vec3 rayDir = vec3(frustumRayX * camera.cosYaw + temp * camera.sinYaw, frustumRayY * camera.cosPitch - camera.sinPitch, temp * camera.cosYaw - frustumRayX * camera.sinYaw);
     rayDir = normalize(rayDir);
                 
     float sunDot = dot(rayDir, lightDirection);
