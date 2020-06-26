@@ -12,7 +12,7 @@ long long currentTime();
 // It's just the Java Random class
 class Random
 {
-	uint64_t seed = 0;
+    uint64_t seed = 0;
 
     static uint64_t seedUniquifier;
 

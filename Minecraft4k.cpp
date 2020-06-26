@@ -36,7 +36,7 @@ int SCR_RES_X = 107 * pow(2, SCR_DETAIL);
 int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
 
 Shader renderShader;
-GLuint computeProgram;
+Shader computeShader;
 GLuint buffer;
 GLuint vao;
 
@@ -534,16 +534,16 @@ void init()
 
                 // multiply tint by the grayscale detail
                 const int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
-			                    (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
-			                    (tint >>  8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
-			                    (tint & 0xFF      ) * gsd_constexpr / 0xFF << 0;
+                                (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
+                                (tint >>  8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
+                                (tint & 0xFF      ) * gsd_constexpr / 0xFF << 0;
 
                 // write pixel to the texture atlas
                 textureAtlas[x + y * TEXTURE_RES + blockType * (TEXTURE_RES * TEXTURE_RES) * 3] = col;
         }
     }
     }
-	
+    
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
 
@@ -551,24 +551,24 @@ void init()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
+    
     glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 3, TEXTURE_RES * 16);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     delete[] textureAtlas;
-	
-	glGenTextures(1, &worldTexture);
-	glBindTexture(GL_TEXTURE_3D, worldTexture);
+    
+    glGenTextures(1, &worldTexture);
+    glBindTexture(GL_TEXTURE_3D, worldTexture);
 
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, world);
-	glBindTexture(GL_TEXTURE_3D, 0);
+    
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, world);
+    glBindTexture(GL_TEXTURE_3D, 0);
 }
 
 void collidePlayer()
@@ -585,14 +585,14 @@ void collidePlayer()
                 return;
         }
         const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2),
-									             playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2),
-											     playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2));
+                                                 playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2),
+                                                 playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2));
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
             const glm::ivec3 colliderBlockPos = glm::ivec3((newPlayerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE,
-											               (newPlayerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT,
-											               (newPlayerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE);
+                                                           (newPlayerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT,
+                                                           (newPlayerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE);
 
             if (colliderBlockPos.y < 0)
                 continue;
@@ -624,7 +624,7 @@ void run(GLFWwindow* window) {
     long startTime = currentTime();
 
     while (!glfwWindowShouldClose(window)) {
-	    const long time = currentTime();
+        const long time = currentTime();
 
         if (needsResUpdate) {
             updateScreenResolution(window);
@@ -669,7 +669,7 @@ void run(GLFWwindow* window) {
 
 
         collidePlayer();
-    	
+        
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             int magicX = int(playerPos.x + ( colliderIndex       & 1) * 0.6F - 0.3F) - WORLD_SIZE;
             int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
@@ -680,31 +680,32 @@ void run(GLFWwindow* window) {
                 setBlock(magicX, magicY, magicZ, BLOCK_AIR);
         }
 
-    	// Compute the raytracing!
+        // Compute the raytracing!
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    	
-        glUseProgram(computeProgram);
+        
+        computeShader.use();
 
         glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-        glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
-        glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-        glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
-    	
-        glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
-        glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
-        glUniform1f(glGetUniformLocation(computeProgram, "camera.FOV"), 90);
+        computeShader.setVec2("screenSize", SCR_RES_X, SCR_RES_Y);
 
-        glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
-    	
-        glUniform3fv(glGetUniformLocation(computeProgram, "lightDirection"), 1, &lightDirection[0]);
-        glUniform3fv(glGetUniformLocation(computeProgram, "sunColor"), 1, &sunColor[0]);
-        glUniform3fv(glGetUniformLocation(computeProgram, "ambColor"), 1, &ambColor[0]);
-        glUniform3fv(glGetUniformLocation(computeProgram, "skyColor"), 1, &skyColor[0]);
-    	
+        glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
+        computeShader.setInt("textureAtlas", 0);
+        
+        computeShader.setFloat("camera.yaw", cameraYaw);
+        computeShader.setFloat("camera.pitch", cameraPitch);
+        computeShader.setFloat("camera.FOV", 90);
+
+        computeShader.setVec3("playerPos", playerPos);
+        
+        computeShader.setVec3("lightDirection", lightDirection);
+        computeShader.setVec3("sunColor", sunColor);
+        computeShader.setVec3("ambColor", ambColor);
+        computeShader.setVec3("skyColor", skyColor);
+        
         glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
         glUseProgram(0);
-    	
+        
         // render the screen texture
         renderShader.use();
         glEnableVertexAttribArray(0);
@@ -722,7 +723,7 @@ void run(GLFWwindow* window) {
         glDisableVertexAttribArray(0);
 
         glUseProgram(0);
-    	
+        
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -751,13 +752,13 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     cameraYaw += xOffset / 1000.0f;
     cameraPitch += yOffset / 1000.0f;
 
-	if(fabs(cameraYaw) > PI)
-	{
+    if(fabs(cameraYaw) > PI)
+    {
         if (cameraYaw > 0)
             cameraYaw = -PI - (cameraYaw - PI);
         else
             cameraYaw = PI + (cameraYaw + PI);
-	}
+    }
     cameraPitch = clamp(cameraPitch, -PI / 2.0f, PI / 2.0f);
 }
 
@@ -765,8 +766,8 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
 {
     if(action == GLFW_PRESS || action == GLFW_REPEAT)
     {
-    	switch(key)
-    	{
+        switch(key)
+        {
         case GLFW_KEY_W:
             controller.forward = 1.0f;
             break;
@@ -790,7 +791,7 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
             SCR_DETAIL++;
             needsResUpdate = true;
             break;
-    	}
+        }
     } else // action == GLFW_RELEASE
     {
         switch (key)
@@ -886,7 +887,7 @@ int main(int argc, char** argv)
 
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
-	
+    
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glClearDepth(1);
     glDepthFunc(GL_LEQUAL);
@@ -899,7 +900,7 @@ int main(int argc, char** argv)
     glfwSetKeyCallback(window, key_callback);
 
     renderShader = Shader("screen", "screen");
-    computeProgram = loadCompute("res/raytrace.comp");
+    computeShader = Shader("raytrace");
 
     
     glActiveTexture(GL_TEXTURE0);
@@ -907,6 +908,6 @@ int main(int argc, char** argv)
     initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
 
     init();
-	
+    
     run(window);
 }
