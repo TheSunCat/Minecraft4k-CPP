@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <glad/glad.h>
+#include <glm/vec3.hpp>
 
 constexpr float PI = 3.14159265359f;
 
@@ -56,3 +57,5 @@ void GLAPIENTRY error_callback(GLenum source,
     GLsizei length,
     const GLchar* message,
     const void* userParam);
+
+std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3);

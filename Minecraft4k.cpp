@@ -74,7 +74,7 @@ constexpr glm::vec3 FOG_COLOR = glm::vec3(1);
 // S = Sun, A = Amb, Y = skY
 constexpr glm::vec3 SC_DAY = glm::vec3(1);
 constexpr glm::vec3 AC_DAY = glm::vec3(0.5f, 0.5f, 0.5f);
-constexpr glm::vec3 YC_DAY = glm::vec3(0x51BAF7);
+constexpr glm::vec3 YC_DAY = glm::vec3(0.317f, 0.729f, 0.969f);
 
 constexpr glm::vec3 SC_TWILIGHT = glm::vec3(1, 0.5f, 0.01f);
 constexpr glm::vec3 AC_TWILIGHT = glm::vec3(0.6f, 0.5f, 0.5f);
@@ -153,7 +153,7 @@ static void fillBox(const uint8_t blockId, const glm::vec3& pos0,
 
 static glm::vec3 lerp(const glm::vec3& start, const glm::vec3& end, const float t)
 {
-    return glm::vec3(start + (start - end) * t);
+    return start + (end - start) * t;
 }
 
 void initTexture(GLuint* texture, const int width, const int height);
@@ -429,7 +429,7 @@ void init()
                     }
             }
 #else
-                float pNoise = Perlin::noise(x, y);
+                const float pNoise = Perlin::noise(x, y);
 
                 tint = 0x966C4A; // brown (dirt)
 
@@ -453,7 +453,7 @@ void init()
                 {
                     tint = 0x776644; // brown (bark)
 
-                    int woodCenter = TEXTURE_RES / 2 - 1;
+                    const int woodCenter = TEXTURE_RES / 2 - 1;
                     int dx = x - woodCenter;
                     int dy = (y % TEXTURE_RES) - woodCenter;
 
@@ -466,7 +466,7 @@ void init()
                     if (dy > dx)
                         dx = dy;
 
-                    double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
+                    const double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
 
                     if (y < 16 || y > 32) { // top/bottom
                         if (distFromCenter < float(TEXTURE_RES) / 2.0f)
@@ -685,25 +685,24 @@ void run(GLFWwindow* window) {
     	
         glUseProgram(computeProgram);
 
-        glUniform2f(glGetUniformLocation(computeProgram, "uSize"), SCR_RES_X, SCR_RES_Y);
+        glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
         glUniform2f(glGetUniformLocation(computeProgram, "screenSize"), SCR_RES_X, SCR_RES_Y);
-    	
-        //glBindImageTexture(2, textureAtlasTex, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA8UI);
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
         glUniform1i(glGetUniformLocation(computeProgram, "textureAtlas"), 0);
-
-        glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
     	
         glUniform1f(glGetUniformLocation(computeProgram, "camera.yaw"), cameraYaw);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.pitch"), cameraPitch);
         glUniform1f(glGetUniformLocation(computeProgram, "camera.FOV"), 90);
 
         glUniform3fv(glGetUniformLocation(computeProgram, "playerPos"), 1, &playerPos[0]);
+    	
         glUniform3fv(glGetUniformLocation(computeProgram, "lightDirection"), 1, &lightDirection[0]);
+        glUniform3fv(glGetUniformLocation(computeProgram, "sunColor"), 1, &sunColor[0]);
+        glUniform3fv(glGetUniformLocation(computeProgram, "ambColor"), 1, &ambColor[0]);
+        glUniform3fv(glGetUniformLocation(computeProgram, "skyColor"), 1, &skyColor[0]);
     	
         glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-    	
         glUseProgram(0);
     	
         // render the screen texture
@@ -723,7 +722,6 @@ void run(GLFWwindow* window) {
         glDisableVertexAttribArray(0);
 
         glUseProgram(0);
-
     	
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -753,8 +751,14 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     cameraYaw += xOffset / 1000.0f;
     cameraPitch += yOffset / 1000.0f;
 
-	// TODO loop yaw around
-    cameraPitch = clamp(cameraPitch, -90.0f, 90.0f);
+	if(fabs(cameraYaw) > PI)
+	{
+        if (cameraYaw > 0)
+            cameraYaw = -PI - (cameraYaw - PI);
+        else
+            cameraYaw = PI + (cameraYaw + PI);
+	}
+    cameraPitch = clamp(cameraPitch, -PI / 2.0f, PI / 2.0f);
 }
 
 void key_callback(GLFWwindow*, const int key, const int scancode, const int action, const int mods)

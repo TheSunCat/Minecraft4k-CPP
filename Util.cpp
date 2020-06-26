@@ -190,3 +190,9 @@ void GLAPIENTRY error_callback(GLenum source,
         (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
         type, severity, message);
 }
+
+std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3)
+{
+    os << vec3.x << ", " << vec3.y << ", " << vec3.z;
+    return os;
+}
