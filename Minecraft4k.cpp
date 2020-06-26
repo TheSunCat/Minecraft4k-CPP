@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
+#include <sstream>;
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -213,7 +214,7 @@ void init()
 
     // generate world
 
-    float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
+    const float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
 #ifdef CLASSIC
     for (int x = WORLD_SIZE; x >= 0; x--) {
         for (int y = 0; y < WORLD_HEIGHT; y++) {
@@ -233,13 +234,13 @@ void init()
         }
 }
 #else
-    float halfWorldSize = WORLD_SIZE / 2.0f;
+    const float halfWorldSize = WORLD_SIZE / 2.0f;
 
     constexpr int stoneDepth = 5;
 
     for (int x = 0; x < WORLD_SIZE; x++) {
         for (int z = 0; z < WORLD_SIZE; z++) {
-            int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
+            const int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
 
             for (int y = terrainHeight; y < WORLD_HEIGHT; y++)
             {
@@ -262,12 +263,12 @@ void init()
         for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
             if (rand.nextInt(4) == 0) // spawn tree
             {
-                int treeX = x + (rand.nextInt(4) - 2);
-                int treeZ = z + (rand.nextInt(4) - 2);
+                const int treeX = x + (rand.nextInt(4) - 2);
+                const int treeZ = z + (rand.nextInt(4) - 2);
 
-                int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
+                const int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
 
-                int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
+                const int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
 
                 for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
@@ -293,10 +294,10 @@ void init()
 
                 for (int i = 0; i < 4; i++)
                 {
-                    int foliageX = foliageXList[i];
-                    int foliageZ = foliageZList[i];
+                    const int foliageX = foliageXList[i];
+                    const int foliageZ = foliageZList[i];
 
-                    int foliageCut = rand.nextInt(10);
+                    const int foliageCut = rand.nextInt(10);
 
                     switch (foliageCut) {
                     case 0: // cut out top
@@ -314,10 +315,10 @@ void init()
                     }
 
 
-                    int crownX = crownXList[i];
-                    int crownZ = crownZList[i];
+                    const int crownX = crownXList[i];
+                    const int crownZ = crownZList[i];
 
-                    int crownCut = rand.nextInt(10);
+                    const int crownCut = rand.nextInt(10);
 
                     switch (crownCut) {
                     case 0: // cut out both
@@ -899,8 +900,15 @@ int main(int argc, char** argv)
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetKeyCallback(window, key_callback);
 
+    std::stringstream defines;
+    defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
+            << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
+            << "#define TEXTURE_RES " << TEXTURE_RES << "\n"
+            << "#define RENDER_DIST " << RENDER_DIST << "\n";
+    const std::string definesStr = defines.str();
+
     renderShader = Shader("screen", "screen");
-    computeShader = Shader("raytrace");
+    computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
 
     
     glActiveTexture(GL_TEXTURE0);

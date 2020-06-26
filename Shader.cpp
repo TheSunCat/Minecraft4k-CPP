@@ -7,7 +7,7 @@
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-Shader::Shader(std::string&& vertexName, std::string&& fragmentName)
+Shader::Shader(std::string vertexName, std::string fragmentName)
 {
     vertexName = "res/" + vertexName + ".vert";
     fragmentName = "res/" + fragmentName + ".frag";
@@ -98,7 +98,7 @@ Shader::Shader(std::string&& vertexName, std::string&& fragmentName)
     glDeleteShader(fragment);
 }
 
-Shader::Shader(std::string&& computeName)
+Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode)
 {
     computeName = "res/" + computeName + ".comp";
 
@@ -120,6 +120,9 @@ Shader::Shader(std::string&& computeName)
         std::cout << "Failed to load compute shader \"" << computeName << "\"!" << std::endl;
         return;
     }
+
+    if(hasExtra == HasExtra::Yes)
+        computeCode.insert(strlen("#version 430\n"), extraCode);
 
     const GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
 

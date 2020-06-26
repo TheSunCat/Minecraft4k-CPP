@@ -27,13 +27,6 @@ const int AXIS_X = 0;
 const int AXIS_Y = 1;
 const int AXIS_Z = 2;
 
-#define WORLD_SIZE 64
-#define WORLD_HEIGHT 64
-
-#define TEXTURE_RES 16
-
-#define RENDER_DIST 100.0f
-
 const int BLOCK_AIR = 0;
 
 float length2(vec3 a)

@@ -5,15 +5,17 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
+enum class HasExtra {Yes, No};
+
 class Shader {
 public:
     GLuint ID = 0;
 
     Shader() = default;
 
-    Shader(std::string&& vertexName, std::string&& fragmentName);
+    Shader(std::string vertexName, std::string fragmentName);
 
-    Shader(std::string&& computeName);
+    Shader(std::string computeName, HasExtra hasExtra, const char* extraCode = "");
 
     void use() const;
 
