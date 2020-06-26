@@ -643,9 +643,10 @@ void run(GLFWwindow* window) {
         cosPitch = cos(cameraPitch);
 
         lightDirection.y = sin(startTime / 100000.0);
-
         lightDirection.x = lightDirection.y * 0.5f;
         lightDirection.z = cos(startTime / 100000.0);
+
+        lightDirection = glm::normalize(lightDirection);
 
 
         if (lightDirection.y < 0.0f)
