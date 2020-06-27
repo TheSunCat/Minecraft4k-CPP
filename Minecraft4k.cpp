@@ -719,8 +719,6 @@ void run(GLFWwindow* window) {
 
         computeShader.setVec2("frustumDiv", (SCR_RES * FOV) / defaultRes);
 
-        //computeShader.setFloat("camera.FOV", 90);
-
         computeShader.setVec3("playerPos", playerPos);
         
         computeShader.setVec3("lightDirection", lightDirection);
