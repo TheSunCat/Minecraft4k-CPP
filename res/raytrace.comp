@@ -21,10 +21,10 @@ uniform sampler2D textureAtlas;
 
 uniform vec3 lightDirection;
 
-uniform vec3 FOG_COLOR = vec3(1);
-uniform vec3 sunColor = vec3(1);
-uniform vec3 ambColor = vec3(0.5);
-uniform vec3 skyColor = vec3(0.32, 0.73, 0.97);
+vec3 FOG_COLOR = vec3(1);
+uniform vec3 sunColor;
+uniform vec3 ambColor;
+uniform vec3 skyColor;
 
 const int AXIS_X = 0;
 const int AXIS_Y = 1;
@@ -43,9 +43,9 @@ vec3 raytrace(in ivec2 pixel_coords)
                                  frustumRay.y * camera.cosPitch - camera.sinPitch,
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
                 
-    float sunDot = dot(rayDir, lightDirection);
+    float sunDot = clamp(dot(rayDir, lightDirection), 0, 1);
                 
-    vec3 pixelColor = vec3(0.53, 0.70, 0.99); // sky color (default)
+    vec3 pixelColor;
     float fogIntensity = 0.0f;
     float lightIntensity = 1.0f;
                 
@@ -67,15 +67,11 @@ vec3 raytrace(in ivec2 pixel_coords)
 
             vec3 rayDelta = rayDir / abs(delta);
 
-            float playerOffsetFromBlockEdge = fract(rayOrigin[axis]);
-
-            if (delta > 0)
-                playerOffsetFromBlockEdge = 1.0f - playerOffsetFromBlockEdge;
+            float playerOffsetFromBlockEdge = delta > 0 ? 1.0f - fract(rayOrigin[axis]) : fract(rayOrigin[axis]);
 
             float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
 
             vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
-
             rayPos[axis] -= delta < 0 ? 1 : 0;
             
             bool skipRestOfIter = false;
@@ -93,17 +89,10 @@ vec3 raytrace(in ivec2 pixel_coords)
 
                 if (blockHitID != BLOCK_AIR)
                 {
-                    int texFetchX = int(mod((rayPos.x + rayPos.z) * TEXTURE_RES, TEXTURE_RES));
-                    int texFetchY = int(mod(rayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
-
-                    if (axis == AXIS_Y)
-                    {
-                        texFetchX = int(mod(rayPos.x * TEXTURE_RES, TEXTURE_RES));
-                        texFetchY = int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES));
-
-                        if (rayDelta.y < 0.0F) // looking at the underside of a block
-                            texFetchY += TEXTURE_RES * 2;
-                    }
+                    int texFetchX = (axis != AXIS_Y) ? int(mod((rayPos.x + rayPos.z) * TEXTURE_RES, TEXTURE_RES)) :
+                                                       int(mod(rayPos.x * TEXTURE_RES, TEXTURE_RES));
+                    int texFetchY = (axis != AXIS_Y) ? int(mod(rayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES) :
+                                                       int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES)) + ((rayDelta.y < 0.0F) ? TEXTURE_RES * 2 : 0);
 
                     vec3 textureColor = texture(textureAtlas, vec2(
                                         texFetchX/ float(TEXTURE_RES), 
@@ -137,6 +126,7 @@ vec3 raytrace(in ivec2 pixel_coords)
 
                 rayTravelDist += 1.0f / abs(delta);
             }
+
             if(skipRestOfIter)
                 break;
         }
@@ -147,46 +137,26 @@ vec3 raytrace(in ivec2 pixel_coords)
         // TODO why?
         if(lightIntensity <= 0.5f)
             break;
-                    
+        
         // prepare for shadows pass
         rayOrigin = closestHit;
-                    
-        rayDir.x = lightDirection.x;
-        rayDir.y = lightDirection.y;
-        rayDir.z = lightDirection.z;
-                    
+        rayDir = lightDirection;
         furthestHit = RENDER_DIST;
     }
 
-                
-    if(wasBlockHit)
-    {
-        pixelColor = mix(pixelColor, FOG_COLOR, fogIntensity);
-
-        vec3 lightColor = mix(ambColor, sunColor, lightIntensity);
-
-        pixelColor = pixelColor * lightColor;
-    } else {
-        if(sunDot > 0.99f)
-            pixelColor = vec3(sunColor);
-        else
-            pixelColor = vec3(skyColor);
-    }    
+    pixelColor = wasBlockHit ?
+                      mix(pixelColor, FOG_COLOR, fogIntensity) * mix(ambColor, sunColor, lightIntensity)
+                    : mix(skyColor, sunColor, 0.5 * pow(sunDot + 0.2, 5));
 
     return pixelColor;
 }
 
 void main() {
-    // base pixel color for image
-    vec4 pixel = vec4(0, 0, 0, 1);
     // get index in global work group i.e x,y position
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
 
-    pixel.xyz = raytrace(pixel_coords);
+    vec4 pixel = vec4(raytrace(pixel_coords), 1);
 
-    //pixel.xyz = imageLoad(world, ivec3(pixel_coords.x, 63, pixel_coords.y)).xyz / 8.0f;
-    //pixel = texture(textureAtlas, vec2(pixel_coords.x / float(TEXTURE_RES), pixel_coords.y / float(TEXTURE_RES * 48.0)));
-
-    // output to a specific pixel in the image
+    // output to image
     imageStore(img_output, pixel_coords, pixel);
 }
