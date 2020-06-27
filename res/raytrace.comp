@@ -14,6 +14,7 @@ struct Camera
 
 uniform vec2 screenSize;
 uniform Camera camera;
+uniform vec2 frustumDiv;
 uniform vec3 playerPos;
 
 uniform sampler2D textureAtlas;
@@ -31,26 +32,16 @@ const int AXIS_Z = 2;
 
 const int BLOCK_AIR = 0;
 
-float length2(vec3 a)
-{
-    return a.x * a.x + a.y * a.y + a.z * a.z;
-}
-
-vec3 lerp(vec3 start, vec3 end, float t)
-{
-    return start + (end - start) * t;
-}
-
 vec3 raytrace(in ivec2 pixel_coords)
 {
-    float frustumRayX = ((pixel_coords.x - (screenSize.x / 2)) / camera.FOV) /  screenSize.x * 214.0f;
-    float frustumRayY = ((pixel_coords.y - (screenSize.y / 2)) / camera.FOV) / screenSize.y * 120.0f;
+    vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / frustumDiv;
 
     // rotate frustum space to world space
-    float temp = camera.cosPitch + frustumRayY * camera.sinPitch;
+    float temp = camera.cosPitch + frustumRay.y * camera.sinPitch;
 
-    vec3 rayDir = vec3(frustumRayX * camera.cosYaw + temp * camera.sinYaw, frustumRayY * camera.cosPitch - camera.sinPitch, temp * camera.cosYaw - frustumRayX * camera.sinYaw);
-    rayDir = normalize(rayDir);
+    vec3 rayDir = normalize(vec3(frustumRay.x * camera.cosYaw + temp * camera.sinYaw,
+                                 frustumRay.y * camera.cosPitch - camera.sinPitch,
+                                 temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
                 
     float sunDot = dot(rayDir, lightDirection);
                 
@@ -72,36 +63,11 @@ vec3 raytrace(in ivec2 pixel_coords)
         {
             // align ray to block edge on this axis
             // and calc ray deltas
-            float delta;
-            switch(axis)
-            {
-                case AXIS_X:
-                    delta = rayDir.x;
-                    break;
-                case AXIS_Y:
-                    delta = rayDir.y;
-                    break;
-                case AXIS_Z:
-                    delta = rayDir.z;
-                    break;
-            }
+            float delta = rayDir[axis];
 
             vec3 rayDelta = rayDir / abs(delta);
 
-            float playerOffsetFromBlockEdge; // TODO confirm
-            switch(axis)
-            {
-                default:
-                case AXIS_X:
-                    playerOffsetFromBlockEdge = mod(rayOrigin.x, 1.0f);
-                    break;
-                case AXIS_Y:
-                    playerOffsetFromBlockEdge = mod(rayOrigin.y, 1.0f);
-                    break;
-                case AXIS_Z:
-                    playerOffsetFromBlockEdge = mod(rayOrigin.z, 1.0f);
-                    break;
-            }
+            float playerOffsetFromBlockEdge = fract(rayOrigin[axis]);
 
             if (delta > 0)
                 playerOffsetFromBlockEdge = 1.0f - playerOffsetFromBlockEdge;
@@ -110,17 +76,7 @@ vec3 raytrace(in ivec2 pixel_coords)
 
             vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
 
-            if (delta < 0.0F)
-            {
-                if (axis == AXIS_X)
-                    rayPos.x--;
-
-                if (axis == AXIS_Y)
-                    rayPos.y--;
-
-                if (axis == AXIS_Z)
-                    rayPos.z--;
-            }
+            rayPos[axis] -= delta < 0 ? 1 : 0;
             
             bool skipRestOfIter = false;
     
@@ -133,7 +89,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                 if (blockHit.x < 0 || blockHit.y < -2 || blockHit.z < 0 || blockHit.x >= WORLD_SIZE || blockHit.y >= WORLD_HEIGHT || blockHit.z >= WORLD_SIZE)
                     break;
 
-                int blockHitID = blockHit.y < 0 ? BLOCK_AIR : int(imageLoad(world, blockHit));
+                uint blockHitID = blockHit.y < 0 ? BLOCK_AIR : imageLoad(world, blockHit);
 
                 if (blockHitID != BLOCK_AIR)
                 {
@@ -149,23 +105,13 @@ vec3 raytrace(in ivec2 pixel_coords)
                             texFetchY += TEXTURE_RES * 2;
                     }
 
-                    vec3 textureColor;
-//                    if(pass == 0 &&
-//                            (blockHit.x == hoveredBlockPosX && blockHit.y == hoveredBlockPosY && blockHit.z == hoveredBlockPosZ &&
-//                            (  (texFetchX == 0               || texFetchY % TEXTURE_RES == 0)
-//                            || (texFetchX == TEXTURE_RES - 1 || texFetchY % TEXTURE_RES == TEXTURE_RES - 1))))
-//                        textureColor = new vec3(1, 1, 1); // add white outline to hovered block
-//                    else
-                    textureColor = vec3(texture(textureAtlas, vec2(
+                    vec3 textureColor = texture(textureAtlas, vec2(
                                         texFetchX/ float(TEXTURE_RES), 
-                                        (texFetchY + TEXTURE_RES * 3.0 * blockHitID) / float(TEXTURE_RES * 48.0))));
+                                        (texFetchY + TEXTURE_RES * 3.0 * blockHitID) / float(TEXTURE_RES * 48.0))).xyz;
 
-                    int direction = 1;
-                    if (delta > 0.0F)
-                        direction = -1;
-                    
+                    int direction = delta > 0 ? -1 : 1;
 
-                    if (length2(textureColor) != 0) { // pixel is not transparent
+                    if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                         if(pass == 0) // not shadows
                         {
                             pixelColor = textureColor;
@@ -181,24 +127,9 @@ vec3 raytrace(in ivec2 pixel_coords)
                         }
                         
                         furthestHit = rayTravelDist;
-
-
                         closestHit = rayPos;
-                                        
-                        switch(axis)
-                        {
-                            case AXIS_X:
-                                lightIntensity = direction * lightDirection.x;
-                                break;
-                            case AXIS_Y:
-                                lightIntensity = direction * lightDirection.y;
-                                break;
-                            case AXIS_Z:
-                                lightIntensity = direction * lightDirection.z;
-                                break;
-                        }
 
-                        lightIntensity = (1 + lightIntensity) / 2.0F;
+                        lightIntensity = 1 + (direction * lightDirection[axis]) / 2.0f;
                     }
                 }
                 
@@ -230,9 +161,9 @@ vec3 raytrace(in ivec2 pixel_coords)
                 
     if(wasBlockHit)
     {
-        pixelColor = lerp(pixelColor, FOG_COLOR, fogIntensity);
+        pixelColor = mix(pixelColor, FOG_COLOR, fogIntensity);
 
-        vec3 lightColor = lerp(ambColor, sunColor, lightIntensity);
+        vec3 lightColor = mix(ambColor, sunColor, lightIntensity);
 
         pixelColor = pixelColor * lightColor;
     } else {

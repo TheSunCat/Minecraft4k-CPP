@@ -33,8 +33,8 @@ bool needsResUpdate = true;
 
 int SCR_DETAIL = 2;
 
-int SCR_RES_X = 107 * pow(2, SCR_DETAIL);
-int SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
+glm::vec2 SCR_RES = glm::ivec2(107 * pow(2, SCR_DETAIL), 60 * pow(2, SCR_DETAIL));
+glm::vec2 defaultRes = glm::ivec2(214, 120);
 
 Shader renderShader;
 Shader computeShader;
@@ -166,8 +166,8 @@ void updateScreenResolution(GLFWwindow* window)
     if (SCR_DETAIL > 6)
         SCR_DETAIL = 6;
 
-    SCR_RES_X = 107 * pow(2, SCR_DETAIL);
-    SCR_RES_Y = 60 * pow(2, SCR_DETAIL);
+    SCR_RES.x = 107 * pow(2, SCR_DETAIL);
+    SCR_RES.y = 60 * pow(2, SCR_DETAIL);
 
 
     std::string title = "Minecraft4k";
@@ -208,7 +208,7 @@ void updateScreenResolution(GLFWwindow* window)
     glfwSetWindowTitle(window, title.c_str());
 
     glDeleteTextures(1, &screenTexture);
-    initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
+    initTexture(&screenTexture, SCR_RES.x, SCR_RES.y);
 
     needsResUpdate = false;
 }
@@ -218,6 +218,8 @@ void init()
     Random rand = Random(18295169L);
 
     // generate world
+
+    std::cout << "Generating world... ";
 
     const float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
 #ifdef CLASSIC
@@ -340,10 +342,12 @@ void init()
     }
 #endif
 
+    std::cout << "Done!\n";
+
     // set random seed to generate textures
     rand.setSeed(151910774187927L);
 
-
+    std::cout << "Building textures... ";
     int* textureAtlas = new int[TEXTURE_RES * TEXTURE_RES * 3 * 16];
 
     // procedurally generates the 16x3 textureAtlas
@@ -549,7 +553,10 @@ void init()
         }
     }
     }
-    
+
+    std::cout << "Done!\n";
+
+    std::cout << "Uploading texture atlas... ";
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
 
@@ -563,7 +570,9 @@ void init()
     glBindTexture(GL_TEXTURE_2D, 0);
 
     delete[] textureAtlas;
-    
+    std::cout << "Done!\n";
+
+    std::cout << "Uploading world data... ";
     glGenTextures(1, &worldTexture);
     glBindTexture(GL_TEXTURE_3D, worldTexture);
 
@@ -575,6 +584,8 @@ void init()
     
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, world);
     glBindTexture(GL_TEXTURE_3D, 0);
+
+    std::cout << "Done!\n";
 }
 
 void collidePlayer()
@@ -642,9 +653,9 @@ void run(GLFWwindow* window) {
         sinPitch = sin(cameraPitch);
         cosPitch = cos(cameraPitch);
 
-        lightDirection.y = sin(startTime / 100000.0);
+        lightDirection.y = sin(startTime / 10000.0);
         lightDirection.x = lightDirection.y * 0.5f;
-        lightDirection.z = cos(startTime / 100000.0);
+        lightDirection.z = cos(startTime / 10000.0);
 
         lightDirection = glm::normalize(lightDirection);
 
@@ -696,7 +707,7 @@ void run(GLFWwindow* window) {
         computeShader.use();
 
         glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-        computeShader.setVec2("screenSize", SCR_RES_X, SCR_RES_Y);
+        computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
 
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
         computeShader.setInt("textureAtlas", 0);
@@ -705,7 +716,10 @@ void run(GLFWwindow* window) {
         computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
         computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
         computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
-        computeShader.setFloat("camera.FOV", 90);
+
+        computeShader.setVec2("frustumDiv", (SCR_RES * FOV) / defaultRes);
+
+        //computeShader.setFloat("camera.FOV", 90);
 
         computeShader.setVec3("playerPos", playerPos);
         
@@ -714,7 +728,7 @@ void run(GLFWwindow* window) {
         computeShader.setVec3("ambColor", ambColor);
         computeShader.setVec3("skyColor", skyColor);
         
-        glDispatchCompute(SCR_RES_X, SCR_RES_Y, 1);
+        glDispatchCompute(SCR_RES.x, SCR_RES.y, 1);
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
         glUseProgram(0);
         
@@ -860,6 +874,8 @@ void initTexture(GLuint* texture, const int width, const int height) {
 
 int main(int argc, char** argv)
 {
+    std::cout << "Initializing GLFW... ";
+
     if (!glfwInit())
     {
         // Initialization failed
@@ -867,6 +883,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    std::cout << "Done!\n";
+
+    std::cout << "Creating window... ";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
@@ -884,19 +903,26 @@ int main(int argc, char** argv)
         std::cout << "Failed to create window!\n";
         return -1;
     }
+    std::cout << "Done!\n";
+
+    std::cout << "Setting OpenGL context... ";
     glfwMakeContextCurrent(window);
+    std::cout << "Done!\n";
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // turn on VSync so we don't run at about a kjghpillion fps
     glfwSwapInterval(1);
 
+    std::cout << "Loading OpenGL functions... ";
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
         std::cout << "Failed to initialize GLAD!\n" << std::endl;
         return -1;
     }
+    std::cout << "Done!\n";
 
+    std::cout << "Configuring OpenGL... ";
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
     
@@ -911,6 +937,9 @@ int main(int argc, char** argv)
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetKeyCallback(window, key_callback);
 
+    std::cout << "Done!\n";
+
+    std::cout << "Building shaders... ";
     std::stringstream defines;
     defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
             << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
@@ -920,13 +949,21 @@ int main(int argc, char** argv)
 
     renderShader = Shader("screen", "screen");
     computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
-
+    std::cout << "Done!\n";
     
     glActiveTexture(GL_TEXTURE0);
-    initBuffers(&vao, &buffer);
-    initTexture(&screenTexture, SCR_RES_X, SCR_RES_Y);
 
+    std::cout << "Building buffers... ";
+    initBuffers(&vao, &buffer);
+    std::cout << "Done!\n";
+
+    std::cout << "Building render texture... ";
+    initTexture(&screenTexture, SCR_RES.x, SCR_RES.y);
+    std::cout << "Done!\n";
+
+    std::cout << "Initializing engine...\n";
     init();
-    
+    std::cout << "Finished initializing engine! Running the game...\n";
+
     run(window);
 }
