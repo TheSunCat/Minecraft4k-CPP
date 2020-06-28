@@ -48,7 +48,7 @@ vec3 raytrace(in ivec2 pixel_coords)
     float lightIntensity = 1.0f;
     vec3 pixelColor;
     
-    double furthestHit = RENDER_DIST;
+    float furthestHit = RENDER_DIST;
     vec3 closestHit = vec3(-1);
     
     bool wasBlockHit = false;
@@ -57,6 +57,8 @@ vec3 raytrace(in ivec2 pixel_coords)
     
     for(int pass = 0; pass < 2; pass++)
     {
+
+        bool skipRestOfPass = false;
         for(int axis = 0; axis < 3; axis++)
         {
             // align ray to block edge on this axis
@@ -73,7 +75,6 @@ vec3 raytrace(in ivec2 pixel_coords)
             
             float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
 
-            bool skipRestOfIter = false;
             // do the raycast
             while (rayTravelDist < furthestHit)
             {
@@ -90,45 +91,40 @@ vec3 raytrace(in ivec2 pixel_coords)
                     const int texFetchX = int((axis != AXIS_Y) ? int(mod((rayPos.x + rayPos.z) * TEXTURE_RES, TEXTURE_RES)) :
                                                         int(mod(rayPos.x * TEXTURE_RES, TEXTURE_RES)));
                     const int texFetchY = int((axis != AXIS_Y) ? int(mod(rayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES) :
-                                                        int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES)) + int((rayDelta.y < 0.0F) ? TEXTURE_RES * 2 : 0));
+                                                        int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES)) + (rayDelta.y < 0.0F ? TEXTURE_RES * 2 : 0));
 
                     const vec3 textureColor = texture(textureAtlas, vec2(
-                                        texFetchX / float(TEXTURE_RES), 
-                                        int(texFetchY + TEXTURE_RES * 3.0f * int(blockHitID)) / float(TEXTURE_RES * 48))).xyz;
+                                                        texFetchX / float(TEXTURE_RES), 
+                                                        (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
                     
-                    const int direction = int(-delta / abs(delta));
-                    
+                    bool texturesPass = pass == 0;
+
                     if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
-                        if(pass == 0) // not shadows
-                        {
-                            pixelColor = textureColor;
-                            fogIntensity = (rayTravelDist / RENDER_DIST);
-                            wasBlockHit = true;
-                        }
-                        else
-                        { // shadows
-                            lightIntensity = 0.25f;
-                            
-                            skipRestOfIter = true;
-                            break;
-                        }
+                        pixelColor = texturesPass ? textureColor : pixelColor;
+                        fogIntensity = texturesPass ? (rayTravelDist / RENDER_DIST) : fogIntensity;
+                        wasBlockHit = texturesPass ? true : wasBlockHit;
                         
-                        furthestHit = rayTravelDist;
-                        closestHit = rayPos;
-                        
-                        lightIntensity = 1 + (direction * lightDirection[axis]) / 2.0f;
+                        lightIntensity = texturesPass ? lightIntensity : 0.25f;
+                        skipRestOfPass = texturesPass ? skipRestOfPass : true;
+
+                        // break out of while loop with this
+                        rayTravelDist = texturesPass ? rayTravelDist : furthestHit + 1;
                     }
+                    
+                    furthestHit = rayTravelDist;
+                    closestHit = rayPos;
+                    lightIntensity = texturesPass ? 1 + (-sign(delta) * lightDirection[axis]) / 2.0f : lightIntensity;
                 }
-                
+
                 rayPos += rayDelta;
                 rayTravelDist += 1.0f / abs(delta);
             }
             
-            if(skipRestOfIter)
+            if(skipRestOfPass)
                 break;
         }
                     
-        if(!wasBlockHit) // don't do sky shadows
+        if(!wasBlockHit || skipRestOfPass) // don't do sky shadows
             break;
                     
         // TODO why?
