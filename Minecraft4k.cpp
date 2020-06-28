@@ -3,7 +3,7 @@
 #include <iostream>
 #include <string>
 #include <thread>
-#include <sstream>;
+#include <sstream>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -36,7 +36,7 @@ int SCR_DETAIL = 2;
 glm::vec2 SCR_RES = glm::ivec2(107 * pow(2, SCR_DETAIL), 60 * pow(2, SCR_DETAIL));
 glm::vec2 defaultRes = glm::ivec2(214, 120);
 
-Shader renderShader;
+Shader screenShader;
 Shader computeShader;
 GLuint buffer;
 GLuint vao;
@@ -70,7 +70,6 @@ constexpr uint8_t BLOCK_WOOD = 7;
 constexpr uint8_t BLOCK_LEAVES = 8;
 
 // COLORS
-constexpr glm::vec3 FOG_COLOR = glm::vec3(1);
 
 // S = Sun, A = Amb, Y = skY
 constexpr glm::vec3 SC_DAY = glm::vec3(1);
@@ -85,7 +84,7 @@ constexpr glm::vec3 SC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
 constexpr glm::vec3 AC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
 constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
 
-float deltaTime = 16.666f; // 60fps
+float deltaTime = 16.666f; // 16.66 = 60fps
 
 glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
                                 WORLD_HEIGHT + 1, 
@@ -115,6 +114,10 @@ uint8_t world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
 uint8_t hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
 
+bool render = true;
+bool compute = true;
+bool fullCompute = true;
+
 #define getw x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT
 static void setBlock(const int x, const int y, const int z, const uint8_t block)
 {
@@ -124,6 +127,11 @@ static void setBlock(const int x, const int y, const int z, const uint8_t block)
 static uint8_t getBlock(const int x, const int y, const int z)
 {
     return world[getw];
+}
+
+static uint8_t getBlock(const glm::vec3& pos)
+{
+    return getBlock(pos.x, pos.y, pos.z);
 }
 
 static bool isWithinWorld(const glm::vec3& pos)
@@ -701,54 +709,61 @@ void run(GLFWwindow* window) {
             lastUpdateTime += 10;
         }
 
-        // Compute the raytracing!
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
-        computeShader.use();
+        if (render)
+        {
+            // Compute the raytracing!
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-        computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
+            if (compute)
+            {
+                computeShader.use();
 
-        glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-        computeShader.setInt("textureAtlas", 0);
-        
-        computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
-        computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
-        computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
-        computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
+                glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
+                computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
 
-        computeShader.setVec2("frustumDiv", (SCR_RES * FOV) / defaultRes);
+                glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
+                computeShader.setInt("textureAtlas", 0);
 
-        computeShader.setVec3("playerPos", playerPos);
-        
-        computeShader.setVec3("lightDirection", lightDirection);
-        computeShader.setVec3("sunColor", sunColor);
-        computeShader.setVec3("ambColor", ambColor);
-        computeShader.setVec3("skyColor", skyColor);
-        
-        glDispatchCompute(SCR_RES.x, SCR_RES.y, 1);
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        glUseProgram(0);
-        
-        // render the screen texture
-        renderShader.use();
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(2);
+                computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
+                computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
+                computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
+                computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
 
-        glBindTexture(GL_TEXTURE_2D, screenTexture);
-        glBindBuffer(GL_ARRAY_BUFFER, buffer);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+                computeShader.setVec2("frustumDiv", (SCR_RES * FOV) / defaultRes);
 
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+                computeShader.setVec3("playerPos", playerPos);
 
-        glDisableVertexAttribArray(2);
-        glDisableVertexAttribArray(0);
+                computeShader.setVec3("lightDirection", lightDirection);
+                computeShader.setVec3("sunColor", sunColor);
+                computeShader.setVec3("ambColor", ambColor);
+                computeShader.setVec3("skyColor", skyColor);
 
-        glUseProgram(0);
+                glDispatchCompute(SCR_RES.x, SCR_RES.y, 1);
+                glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                glUseProgram(0);
+            }
 
-        glfwSwapBuffers(window);
+            // render the screen texture
+            screenShader.use();
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(2);
+
+            glBindTexture(GL_TEXTURE_2D, screenTexture);
+            glBindBuffer(GL_ARRAY_BUFFER, buffer);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            glDisableVertexAttribArray(2);
+            glDisableVertexAttribArray(0);
+
+            glUseProgram(0);
+
+            glfwSwapBuffers(window);
+        }
+
         glfwPollEvents();
     }
 
@@ -870,8 +885,22 @@ void initTexture(GLuint* texture, const int width, const int height) {
     glBindImageTexture(0, *texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 }
 
-int main(int argc, char** argv)
+int main(const int argc, const char** argv)
 {
+    if(argc == 2)
+    {
+        std::string argument = argv[1];
+        switch(argument[0])
+        {
+        case 'a':
+            render = false;
+        case 's':
+            compute = false;
+        case 'd':
+            fullCompute = false;
+        }
+    }
+
     std::cout << "Initializing GLFW... ";
 
     if (!glfwInit())
@@ -945,8 +974,19 @@ int main(int argc, char** argv)
             << "#define RENDER_DIST " << RENDER_DIST << "\n";
     const std::string definesStr = defines.str();
 
-    renderShader = Shader("screen", "screen");
-    computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
+    screenShader = Shader("screen", "screen");
+
+    if (fullCompute)
+        computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
+    else
+        computeShader = Shader(HasExtra::No, 
+       "#version 430\n"
+            "layout(local_size_x = 1, local_size_y = 1) in;\n"
+            "layout(rgba32f, binding = 0) uniform image2D img_output;\n"
+            "\n"
+            "void main() {\n"
+                "imageStore(img_output, ivec2(gl_GlobalInvocationID.xy), vec4(0.5));\n"
+            "}");
     std::cout << "Done!\n";
     
     glActiveTexture(GL_TEXTURE0);

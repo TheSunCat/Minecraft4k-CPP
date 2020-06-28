@@ -17,6 +17,8 @@ public:
 
     Shader(std::string computeName, HasExtra hasExtra, const char* extraCode = "");
 
+    Shader(HasExtra, std::string source);
+
     void use() const;
 
     // utility uniform functions

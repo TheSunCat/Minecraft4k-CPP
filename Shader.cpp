@@ -137,7 +137,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     glGetShaderiv(computeShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
+        glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
         std::cout << "Failed to compile compute shader \"" << computeName << "\"! Error log:\n" << infoLog << std::endl;
         return;
     }
@@ -153,6 +153,44 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     {
         glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
         std::cout << "Failed to link compute shader \"" << computeName << "\"! Error log:\n" << infoLog << std::endl;
+        return;
+    }
+
+    glDetachShader(ID, computeShader);
+    glDeleteShader(computeShader);
+}
+
+Shader::Shader(HasExtra, const std::string source)
+{
+    const GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+
+    char const* computeSource = source.c_str();
+    glShaderSource(computeShader, 1, &computeSource, nullptr);
+    glCompileShader(computeShader);
+
+    // catch errors
+    int success;
+    char infoLog[512];
+
+    glGetShaderiv(computeShader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
+        std::cout << "Failed to compile compute shader \"default\"! Error log:\n" << infoLog << std::endl;
+        return;
+    }
+
+    // link the program
+    ID = glCreateProgram();
+    glAttachShader(ID, computeShader);
+    glLinkProgram(ID);
+
+    // catch errors
+    glGetProgramiv(ID, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
+        std::cout << "Failed to link compute shader \"default\"! Error log:\n" << infoLog << std::endl;
         return;
     }
 
