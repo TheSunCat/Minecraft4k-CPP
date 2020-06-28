@@ -10,6 +10,8 @@ layout(r8ui, binding = 1) uniform uimage3D world;
 
 #define BLOCK_AIR 0
 
+#define PASS_TEXTURE 0
+
 struct Camera
 {
     float cosYaw;
@@ -55,9 +57,8 @@ vec3 raytrace(in ivec2 pixel_coords)
     
     vec3 rayOrigin = playerPos;
     
-    for(int pass = 0; pass < 2; pass++)
+    for(int pass = PASS_TEXTURE; pass < 2; pass++)
     {
-
         bool skipRestOfPass = false;
         for(int axis = 0; axis < 3; axis++)
         {
@@ -81,7 +82,11 @@ vec3 raytrace(in ivec2 pixel_coords)
                 const ivec3 blockHit = ivec3(rayPos.x - WORLD_SIZE, rayPos.y - WORLD_HEIGHT, rayPos.z - WORLD_SIZE);
 
                 // if ray exits the world
-                if (blockHit.x < 0 || blockHit.y < -2 || blockHit.z < 0 || blockHit.x >= WORLD_SIZE || blockHit.y >= WORLD_HEIGHT || blockHit.z >= WORLD_SIZE)
+                const vec3 lessThanWorld = step(vec3(0, -2, 0), blockHit);
+                const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), blockHit);
+                
+                bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
+                if(!inWorld)
                     break;
                 
                 const int blockHitID = blockHit.y < 0 ? BLOCK_AIR : int(imageLoad(world, blockHit).x);
@@ -97,7 +102,7 @@ vec3 raytrace(in ivec2 pixel_coords)
                                                         texFetchX / float(TEXTURE_RES), 
                                                         (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
                     
-                    bool texturesPass = pass == 0;
+                    bool texturesPass = pass == PASS_TEXTURE;
 
                     if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                         pixelColor = texturesPass ? textureColor : pixelColor;
