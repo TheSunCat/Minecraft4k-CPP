@@ -31,7 +31,7 @@ Controller controller{};
 
 bool needsResUpdate = true;
 
-int SCR_DETAIL = 2;
+int SCR_DETAIL = 1;
 
 glm::vec2 SCR_RES = glm::ivec2(107 * pow(2, SCR_DETAIL), 60 * pow(2, SCR_DETAIL));
 glm::vec2 defaultRes = glm::ivec2(214, 120);
@@ -99,7 +99,7 @@ glm::vec3 newHoverBlockPos;
 glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
 float cameraYaw = 0.0f;
-float cameraPitch = 0.0f;
+float cameraPitch = -2.0f * PI;
 float FOV = 90.0f;
 
 float sinYaw, sinPitch;
@@ -370,7 +370,7 @@ void init()
                 int gsd_constexpr;
                 int tint;
 
-#ifdef CLASSIC
+#ifndef CLASSIC
                 if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
                     gsd_tempA = 0xFF - rand.nextInt(0x60);
 
@@ -654,7 +654,6 @@ void run(GLFWwindow* window) {
         if (needsResUpdate) {
             updateScreenResolution(window);
         }
-        
 
         sinYaw = sin(cameraYaw);
         cosYaw = cos(cameraYaw);
