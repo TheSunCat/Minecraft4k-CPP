@@ -12,6 +12,8 @@ layout(r8ui, binding = 1) uniform uimage3D world;
 
 #define PASS_TEXTURE 0
 
+#define select(condition, a, b) ((condition) ? (a) : (b))
+
 struct Camera
 {
     float cosYaw;
@@ -71,7 +73,6 @@ vec3 raytrace(in ivec2 pixel_coords)
             const float playerOffsetFromBlockEdge = delta > 0 ? 1.0f - fract(rayOrigin[axis]) : fract(rayOrigin[axis]);
             
             vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
-
             rayPos[axis] -= delta < 0 ? 1 : 0;
             
             float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
@@ -104,21 +105,22 @@ vec3 raytrace(in ivec2 pixel_coords)
                     
                     bool texturesPass = pass == PASS_TEXTURE;
 
-                    if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
-                        pixelColor = texturesPass ? textureColor : pixelColor;
-                        fogIntensity = texturesPass ? (rayTravelDist / RENDER_DIST) : fogIntensity;
-                        wasBlockHit = texturesPass ? true : wasBlockHit;
-                        
-                        lightIntensity = texturesPass ? lightIntensity : 0.25f;
-                        skipRestOfPass = texturesPass ? skipRestOfPass : true;
+                    int pixelOpaque = int(any(bvec2(textureColor))); // pixel is not transparent
+                    bool opaqueAndTex = bool(pixelOpaque) && texturesPass;
 
-                        // break out of while loop with this
-                        rayTravelDist = texturesPass ? rayTravelDist : furthestHit + 1;
-                    }
+                    pixelColor =  select(texturesPass, mix(pixelColor, textureColor, pixelOpaque), pixelColor);
+                    fogIntensity = select(texturesPass, mix(rayTravelDist / RENDER_DIST, fogIntensity, pixelOpaque), fogIntensity);
+                    wasBlockHit = select(opaqueAndTex, true, wasBlockHit);
+                        
+                    lightIntensity = select(texturesPass, lightIntensity, mix(lightIntensity, 0.25f, pixelOpaque));
+                    skipRestOfPass = select(bool(pixelOpaque) && texturesPass, skipRestOfPass, true);
+
+                    // break out of while loop with this
+                    rayTravelDist = select(texturesPass, rayTravelDist, mix(rayTravelDist, furthestHit, pixelOpaque));
                     
-                    furthestHit = rayTravelDist;
-                    closestHit = rayPos;
-                    lightIntensity = texturesPass ? 1 + (-sign(delta) * lightDirection[axis]) / 2.0f : lightIntensity;
+                    furthestHit = select(opaqueAndTex, rayTravelDist, furthestHit);
+                    closestHit = select(opaqueAndTex, rayPos, closestHit);
+                    lightIntensity = select(opaqueAndTex, 1 + (-sign(delta) * lightDirection[axis]) / 2.0f, lightIntensity);
                 }
 
                 rayPos += rayDelta;
