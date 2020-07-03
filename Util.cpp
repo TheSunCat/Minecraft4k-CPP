@@ -189,8 +189,8 @@ void GLAPIENTRY error_callback(GLenum source,
     fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
         (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
         type, severity, message);
-
-    __debugbreak();
+    
+    //__debugbreak();
 }
 
 std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3)

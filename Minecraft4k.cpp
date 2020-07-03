@@ -737,7 +737,7 @@ void run(GLFWwindow* window) {
                 computeShader.setVec3("ambColor", ambColor);
                 computeShader.setVec3("skyColor", skyColor);
 
-                glDispatchCompute(SCR_RES.x, SCR_RES.y, 1);
+                glDispatchCompute((SCR_RES.x + 7) / 8, (SCR_RES.y + 7) / 8.0f, 1);
                 glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
                 glUseProgram(0);
             }
