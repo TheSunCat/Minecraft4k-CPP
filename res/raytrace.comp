@@ -1,5 +1,5 @@
 #version 430
-layout(local_size_x = 8, local_size_y = 8) in;
+layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
 layout(r8ui, binding = 1) uniform uimage3D world;
 
@@ -45,7 +45,7 @@ vec3 raytrace(in ivec2 pixel_coords)
     vec3 rayDir = normalize(vec3(frustumRay.x * camera.cosYaw + temp * camera.sinYaw,
                                  frustumRay.y * camera.cosPitch - camera.sinPitch,
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
-    
+
     const float sunDot = clamp(dot(rayDir, lightDirection), 0, 1);
 
     float fogIntensity = 0.0f;
@@ -102,13 +102,13 @@ vec3 raytrace(in ivec2 pixel_coords)
                     const vec3 textureColor = texture(textureAtlas, vec2(
                                                         texFetchX / float(TEXTURE_RES), 
                                                         (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
-                    
+
                     bool texturesPass = pass == PASS_TEXTURE;
 
                     int pixelOpaque = int(any(bvec2(textureColor))); // pixel is not transparent
                     bool opaqueAndTex = bool(pixelOpaque) && texturesPass;
 
-                    pixelColor =  select(texturesPass, mix(pixelColor, textureColor, pixelOpaque), pixelColor);
+                    pixelColor = select(texturesPass, textureColor, pixelColor);
                     fogIntensity = select(texturesPass, mix(rayTravelDist / RENDER_DIST, fogIntensity, pixelOpaque), fogIntensity);
                     wasBlockHit = select(opaqueAndTex, true, wasBlockHit);
                         
@@ -153,7 +153,7 @@ void main() {
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
     
     vec4 pixel = vec4(raytrace(pixel_coords), 1);
-    
+
     // output to image
     imageStore(img_output, pixel_coords, pixel);
 }

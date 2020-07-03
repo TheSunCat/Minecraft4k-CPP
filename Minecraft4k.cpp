@@ -1,9 +1,9 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <thread>
-#include <sstream>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -737,8 +737,11 @@ void run(GLFWwindow* window) {
                 computeShader.setVec3("ambColor", ambColor);
                 computeShader.setVec3("skyColor", skyColor);
 
-                glDispatchCompute((SCR_RES.x + 7) / 8, (SCR_RES.y + 7) / 8.0f, 1);
+                glInvalidateTexImage(screenTexture, 0);
+
                 glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+                glDispatchCompute((SCR_RES.x + 15) / 16, (SCR_RES.y + 15) / 16, 1);
+                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
                 glUseProgram(0);
             }
 
