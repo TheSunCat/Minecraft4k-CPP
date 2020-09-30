@@ -1,6 +1,5 @@
 #include "Util.h"
 
-
 #include <chrono>
 #include <complex>
 #include <iostream>

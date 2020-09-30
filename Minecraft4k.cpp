@@ -9,9 +9,10 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+#include "Constants.h"
 #include "Shader.h"
 #include "Util.h"
-
+#include "TextureGenerator.h"
 
 struct Controller
 {
@@ -25,13 +26,11 @@ struct Controller
     bool firstMouse = true;
 };
 
-//#define CLASSIC
-
 Controller controller{};
 
 bool needsResUpdate = true;
 
-int SCR_DETAIL = 1;
+int SCR_DETAIL = 2;
 
 glm::vec2 SCR_RES = glm::ivec2(107 * pow(2, SCR_DETAIL), 60 * pow(2, SCR_DETAIL));
 glm::vec2 defaultRes = glm::ivec2(214, 120);
@@ -44,45 +43,6 @@ GLuint vao;
 GLuint textureAtlasTex;
 GLuint worldTexture;
 GLuint screenTexture;
-
-constexpr int WINDOW_WIDTH = 856;
-constexpr int WINDOW_HEIGHT = 480;
-
-#ifdef CLASSIC
-constexpr float RENDER_DIST = 20.0f;
-#else
-constexpr float RENDER_DIST = 80.0f;
-#endif
-
-constexpr float PLAYER_REACH = 5.0f;
-
-constexpr int TEXTURE_RES = 16;
-
-constexpr int WORLD_SIZE = 64;
-constexpr int WORLD_HEIGHT = 64;
-
-constexpr uint8_t BLOCK_AIR = 0;
-constexpr uint8_t BLOCK_GRASS = 1;
-constexpr uint8_t BLOCK_DEFAULT_DIRT = 2;
-constexpr uint8_t BLOCK_STONE = 4;
-constexpr uint8_t BLOCK_BRICKS = 5;
-constexpr uint8_t BLOCK_WOOD = 7;
-constexpr uint8_t BLOCK_LEAVES = 8;
-
-// COLORS
-
-// S = Sun, A = Amb, Y = skY
-constexpr glm::vec3 SC_DAY = glm::vec3(1);
-constexpr glm::vec3 AC_DAY = glm::vec3(0.5f, 0.5f, 0.5f);
-constexpr glm::vec3 YC_DAY = glm::vec3(0.317f, 0.729f, 0.969f);
-
-constexpr glm::vec3 SC_TWILIGHT = glm::vec3(1, 0.5f, 0.01f);
-constexpr glm::vec3 AC_TWILIGHT = glm::vec3(0.6f, 0.5f, 0.5f);
-constexpr glm::vec3 YC_TWILIGHT = glm::vec3(0.27f, 0.24f, 0.33f);
-
-constexpr glm::vec3 SC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
-constexpr glm::vec3 AC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
-constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
 
 float deltaTime = 16.666f; // 16.66 = 60fps
 
@@ -99,8 +59,9 @@ glm::vec3 newHoverBlockPos;
 glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
 float cameraYaw = 0.0f;
-float cameraPitch = -2.0f * PI;
+float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
+glm::vec2 frustumDiv = (SCR_RES * FOV) / defaultRes;
 
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
@@ -287,7 +248,7 @@ void init()
 
                 for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
-                    setBlock(treeX, y, treeZ, BLOCK_WOOD);
+                    setBlock(treeX, y, treeZ, BLOCK_NEW);
                 }
 
                 // foliage
@@ -352,232 +313,8 @@ void init()
 
     std::cout << "Done!\n";
 
-    // set random seed to generate textures
-    rand.setSeed(151910774187927L);
-
-    std::cout << "Building textures... ";
-    int* textureAtlas = new int[TEXTURE_RES * TEXTURE_RES * 3 * 16];
-
-    // procedurally generates the 16x3 textureAtlas
-    // gsd = grayscale detail
-    for (int blockType = 1; blockType < 16; blockType++) {
-        int gsd_tempA = 0xFF - rand.nextInt(0x60);
-
-        for (int y = 0; y < TEXTURE_RES * 3; y++) {
-            for (int x = 0; x < TEXTURE_RES; x++) {
-                // gets executed per pixel/texel
-
-                int gsd_constexpr;
-                int tint;
-
-#ifndef CLASSIC
-                if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
-                    gsd_tempA = 0xFF - rand.nextInt(0x60);
-
-                tint = 0x966C4A; // brown (dirt)
-                switch (blockType)
-                {
-                case BLOCK_STONE:
-                {
-                    tint = 0x7F7F7F; // grey
-                    break;
-                }
-                case BLOCK_GRASS:
-                {
-                    if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
-                        tint = 0x6AAA40; // green
-                    else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
-                        gsd_tempA = gsd_tempA * 2 / 3;
-                    break;
-                }
-                case BLOCK_WOOD:
-                {
-                    tint = 0x675231; // brown (bark)
-                    if (!(y >= TEXTURE_RES && y < TEXTURE_RES * 2) && // second row = stripes
-                        x > 0 && x < TEXTURE_RES - 1 &&
-                        ((y > 0 && y < TEXTURE_RES - 1) || (y > TEXTURE_RES * 2 && y < TEXTURE_RES * 3 - 1))) { // wood side area
-                        tint = 0xBC9862; // light brown
-
-                        // the following code repurposes 2 gsd variables making it a bit hard to read
-                        // but in short it gets the absolute distance from the tile's center in x and y direction 
-                        // finds the max of it
-                        // uses that to make the gray scale detail darker if the current pixel is part of an annual ring
-                        // and adds some noise as a finishing touch
-                        int woodCenter = TEXTURE_RES / 2 - 1;
-
-                        int dx = x - woodCenter;
-                        int dy = (y % TEXTURE_RES) - woodCenter;
-
-                        if (dx < 0)
-                            dx = 1 - dx;
-
-                        if (dy < 0)
-                            dy = 1 - dy;
-
-                        if (dy > dx)
-                            dx = dy;
-
-                        gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
-                    }
-                    else if (rand.nextInt(2) == 0) {
-                        // make the gsd 50% brighter on random pixels of the bark
-                        // and 50% darker if x happens to be odd
-                        gsd_tempA = gsd_tempA * (150 - (x & 1) * 100) / 100;
-                    }
-                    break;
-                }
-                case BLOCK_BRICKS:
-                {
-                    tint = 0xB53A15; // red
-                    if ((x + y / 4 * 4) % 8 == 0 || y % 4 == 0) // gap between bricks
-                        tint = 0xBCAFA5; // reddish light grey
-                    break;
-                }
-                }
-
-                gsd_constexpr = gsd_tempA;
-                if (y >= TEXTURE_RES * 2) // bottom side of the block
-                    gsd_constexpr /= 2; // make it darker, baked "shading"
-
-                if (blockType == BLOCK_LEAVES) {
-                    tint = 0x50D937; // green
-                    if (rand.nextInt(2) == 0) {
-                        tint = 0;
-                        gsd_constexpr = 0xFF;
-                    }
-            }
-#else
-                const float pNoise = Perlin::noise(x, y);
-
-                tint = 0x966C4A; // brown (dirt)
-
-                gsd_tempA = (1 - pNoise * 0.5f) * 255;
-                switch (blockType) {
-                case BLOCK_STONE:
-                {
-                    tint = 0x7F7F7F; // grey
-                    gsd_tempA = double(0.75 + round(abs(Perlin::noise(x * 0.5f, y * 2))) * 0.125) * 255;
-                    break;
-                }
-                case BLOCK_GRASS:
-                {
-                    if (y < (((x * x * 3 + x * 81) / 2) % 4) + 18) // grass + grass edge
-                        tint = 0x7AFF40; //green
-                    else if (y < (((x * x * 3 + x * 81) / 2) % 4) + 19)
-                        gsd_tempA = gsd_tempA * 1 / 3;
-                    break;
-                }
-                case BLOCK_WOOD:
-                {
-                    tint = 0x776644; // brown (bark)
-
-                    const int woodCenter = TEXTURE_RES / 2 - 1;
-                    int dx = x - woodCenter;
-                    int dy = (y % TEXTURE_RES) - woodCenter;
-
-                    if (dx < 0)
-                        dx = 1 - dx;
-
-                    if (dy < 0)
-                        dy = 1 - dy;
-
-                    if (dy > dx)
-                        dx = dy;
-
-                    const double distFromCenter = (sqrt(dx * dx + dy * dy) * .25f + std::max(dx, dy) * .75f);
-
-                    if (y < 16 || y > 32) { // top/bottom
-                        if (distFromCenter < float(TEXTURE_RES) / 2.0f)
-                        {
-                            tint = 0xCCAA77; // light brown
-
-                            gsd_tempA = 196 - rand.nextInt(32) + dx % 3 * 32;
-                        }
-                        else if (dx > dy) {
-                            gsd_tempA = Perlin::noise(y, x * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                        }
-                        else {
-                            gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                        }
-                    }
-                    else { // side texture
-                        gsd_tempA = Perlin::noise(x, y * .25f) * 255 * (180 - sin(x * PI) * 50) / 100;
-                    }
-                    break;
-                }
-                case BLOCK_BRICKS:
-                {
-                    tint = 0x444444; // red
-
-                    float brickDX = abs(x % 8 - 4);
-                    float brickDY = abs((y % 4) - 2) * 2;
-
-                    if ((y / 4) % 2 == 1)
-                        brickDX = abs((x + 4) % 8 - 4);
-
-                    float d = sqrt(brickDX * brickDX + brickDY * brickDY) * .5f
-                        + std::max(brickDX, brickDY) * .5f;
-
-                    if (d > 4) // gap between bricks
-                        tint = 0xAAAAAA; // light grey
-                    break;
-                }
-                }
-
-                gsd_constexpr = gsd_tempA;
-
-                if (blockType == BLOCK_LEAVES)
-                {
-                    tint = 0;
-
-                    float dx = abs(x % 4 - 2) * 2;
-                    float dy = (y % 8) - 4;
-
-                    if ((y / 8) % 2 == 1)
-                        dx = abs((x + 2) % 4 - 2) * 2;
-
-                    dx += pNoise;
-
-                    float d = dx + abs(dy);
-
-                    if (dy < 0)
-                        d = sqrt(dx * dx + dy * dy);
-
-                    if (d < 3.5f)
-                        tint = 0xFFCCDD;
-                    else if (d < 4)
-                        tint = 0xCCAABB;
-                }
-#endif
-
-                // multiply tint by the grayscale detail
-                const int col = ((tint & 0xFFFFFF) == 0 ? 0 : 0xFF) << 24 |
-                                (tint >> 16 & 0xFF) * gsd_constexpr / 0xFF << 16 |
-                                (tint >>  8 & 0xFF) * gsd_constexpr / 0xFF << 8 |
-                                (tint & 0xFF      ) * gsd_constexpr / 0xFF << 0;
-
-                // write pixel to the texture atlas
-                textureAtlas[x + y * TEXTURE_RES + blockType * (TEXTURE_RES * TEXTURE_RES) * 3] = col;
-        }
-    }
-    }
-
-    std::cout << "Done!\n";
-
-    std::cout << "Uploading texture atlas... ";
-    glGenTextures(1, &textureAtlasTex);
-    glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 3, TEXTURE_RES * 16);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    delete[] textureAtlas;
+    std::cout << "Generating textures... ";
+    textureAtlasTex = generateTextures();
     std::cout << "Done!\n";
 
     std::cout << "Uploading world data... ";
@@ -594,6 +331,68 @@ void init()
     glBindTexture(GL_TEXTURE_3D, 0);
 
     std::cout << "Done!\n";
+}
+
+void raycast(const glm::vec2 pixelCoords, glm::vec3& hoveredBlockPos_out, glm::vec3& placeBlockPos_out)
+{
+    // rotate frustum space to world space
+    const float temp = cosPitch + sinPitch;
+
+    glm::vec3 rayDir = glm::normalize(glm::vec3(cosYaw + temp * sinYaw,
+                                                cosPitch - sinPitch,
+                                                temp * cosYaw - sinYaw));
+
+    float furthestHit = PLAYER_REACH;
+    glm::vec3 closestHit(-1);
+    int closestHitAxis = 0;
+    int closestHitDir = 0;
+
+    glm::vec3 rayOrigin = playerPos;
+
+    for (int axis = 0; axis < 3; axis++)
+    {
+        // align ray to block edge on this axis
+        // and calc ray deltas
+        const float delta = rayDir[axis];
+
+        const glm::vec3 rayDelta = rayDir / abs(delta);
+
+        const float playerOffsetFromBlockEdge = delta > 0 ? 1.0f - glm::fract(rayOrigin[axis]) : glm::fract(rayOrigin[axis]);
+
+        glm::vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
+        rayPos[axis] -= delta < 0 ? 1 : 0;
+
+        float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
+
+        // do the raycast
+        while (rayTravelDist < furthestHit)
+        {
+            const glm::vec3 blockHit = glm::vec3(rayPos.x - WORLD_SIZE, rayPos.y - WORLD_HEIGHT, rayPos.z - WORLD_SIZE);
+
+            // if ray exits the world
+            if (!isWithinWorld(blockHit))
+                break;
+
+            const int blockHitID = blockHit.y < 0 ? BLOCK_AIR : getBlock(blockHit);                                                                        
+
+            if (blockHitID != BLOCK_AIR)
+            {
+                closestHit = blockHit;
+                closestHitAxis = axis;
+                closestHitDir = glm::sign(rayDelta[closestHitAxis]);
+
+                furthestHit = rayTravelDist;
+            }
+
+            rayPos += rayDelta;
+            rayTravelDist += 1.0f / abs(delta);
+        }
+    }
+
+    hoveredBlockPos_out = closestHit;
+
+    placeBlockPos_out = closestHit;
+    hoveredBlockPos_out[abs(closestHitDir)] += closestHitDir;
 }
 
 void collidePlayer()
@@ -708,6 +507,10 @@ void run(GLFWwindow* window) {
             lastUpdateTime += 10;
         }
 
+        raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
+
+        std::cout << hoveredBlockPos << "\n";
+
         if (render)
         {
             // Compute the raytracing!
@@ -715,6 +518,8 @@ void run(GLFWwindow* window) {
 
             if (compute)
             {
+                frustumDiv = (SCR_RES * FOV) / defaultRes;
+
                 computeShader.use();
 
                 glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
@@ -728,9 +533,11 @@ void run(GLFWwindow* window) {
                 computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
                 computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
 
-                computeShader.setVec2("frustumDiv", (SCR_RES * FOV) / defaultRes);
+                computeShader.setVec2("frustumDiv", frustumDiv);
 
-                computeShader.setVec3("playerPos", playerPos);
+                computeShader.setVec3("cameraPos", playerPos);
+
+                computeShader.setVec3("hoveredBlockPos", hoveredBlockPos);
 
                 computeShader.setVec3("lightDirection", lightDirection);
                 computeShader.setVec3("sunColor", sunColor);

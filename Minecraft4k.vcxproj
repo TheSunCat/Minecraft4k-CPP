@@ -158,6 +158,7 @@
     <ClCompile Include="glad.c" />
     <ClCompile Include="Minecraft4k.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="TextureGenerator.cpp" />
     <ClCompile Include="Util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -167,7 +168,9 @@
     <None Include="res\screen.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Constants.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="TextureGenerator.h" />
     <ClInclude Include="Util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

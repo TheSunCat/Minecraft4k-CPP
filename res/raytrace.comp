@@ -9,6 +9,7 @@ layout(r8ui, binding = 1) uniform uimage3D world;
 #define AXIS_Z 2
 
 #define BLOCK_AIR 0
+#define BLOCK_NEW 9
 
 #define PASS_TEXTURE 0
 
@@ -25,7 +26,8 @@ struct Camera
 uniform vec2 screenSize;
 uniform Camera camera;
 uniform vec2 frustumDiv;
-uniform vec3 playerPos;
+uniform vec3 cameraPos;
+uniform vec3 hoveredBlockPos;
 
 uniform sampler2D textureAtlas;
 
@@ -45,103 +47,76 @@ vec3 raytrace(in ivec2 pixel_coords)
     vec3 rayDir = normalize(vec3(frustumRay.x * camera.cosYaw + temp * camera.sinYaw,
                                  frustumRay.y * camera.cosPitch - camera.sinPitch,
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
-
+    
     const float sunDot = clamp(dot(rayDir, lightDirection), 0, 1);
 
     float fogIntensity = 0.0f;
     float lightIntensity = 1.0f;
     vec3 pixelColor;
     
-    float furthestHit = RENDER_DIST;
-    vec3 closestHit = vec3(-1);
+    float farthestRayDist = RENDER_DIST;
     
     bool wasBlockHit = false;
     
-    vec3 rayOrigin = playerPos;
-    
-    for(int pass = PASS_TEXTURE; pass < 2; pass++)
+    for(int axis = 0; axis < 3; axis++)
     {
-        bool skipRestOfPass = false;
-        for(int axis = 0; axis < 3; axis++)
-        {
-            // align ray to block edge on this axis
-            // and calc ray deltas
-            const float delta = rayDir[axis];
-            
-            const vec3 rayDelta = rayDir / abs(delta);
-            
-            const float playerOffsetFromBlockEdge = delta > 0 ? 1.0f - fract(rayOrigin[axis]) : fract(rayOrigin[axis]);
-            
-            vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
-            rayPos[axis] -= delta < 0 ? 1 : 0;
-            
-            float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
-
-            // do the raycast
-            while (rayTravelDist < furthestHit)
-            {
-                const ivec3 blockHit = ivec3(rayPos.x - WORLD_SIZE, rayPos.y - WORLD_HEIGHT, rayPos.z - WORLD_SIZE);
-
-                // if ray exits the world
-                const vec3 lessThanWorld = step(vec3(0, -2, 0), blockHit);
-                const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), blockHit);
-                
-                bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
-                if(!inWorld)
-                    break;
-                
-                const int blockHitID = blockHit.y < 0 ? BLOCK_AIR : int(imageLoad(world, blockHit).x);
-
-                if (blockHitID != BLOCK_AIR)
-                {
-                    const int texFetchX = int((axis != AXIS_Y) ? int(mod((rayPos.x + rayPos.z) * TEXTURE_RES, TEXTURE_RES)) :
-                                                        int(mod(rayPos.x * TEXTURE_RES, TEXTURE_RES)));
-                    const int texFetchY = int((axis != AXIS_Y) ? int(mod(rayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES) :
-                                                        int(mod(rayPos.z * TEXTURE_RES, TEXTURE_RES)) + (rayDelta.y < 0.0F ? TEXTURE_RES * 2 : 0));
-
-                    const vec3 textureColor = texture(textureAtlas, vec2(
-                                                        texFetchX / float(TEXTURE_RES), 
-                                                        (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
-
-                    bool texturesPass = pass == PASS_TEXTURE;
-
-                    int pixelOpaque = int(any(bvec2(textureColor))); // pixel is not transparent
-                    bool opaqueAndTex = bool(pixelOpaque) && texturesPass;
-
-                    pixelColor = select(texturesPass, textureColor, pixelColor);
-                    fogIntensity = select(texturesPass, mix(rayTravelDist / RENDER_DIST, fogIntensity, pixelOpaque), fogIntensity);
-                    wasBlockHit = select(opaqueAndTex, true, wasBlockHit);
-                        
-                    lightIntensity = select(texturesPass, lightIntensity, mix(lightIntensity, 0.25f, pixelOpaque));
-                    skipRestOfPass = select(bool(pixelOpaque) && texturesPass, skipRestOfPass, true);
-
-                    // break out of while loop with this
-                    rayTravelDist = select(texturesPass, rayTravelDist, mix(rayTravelDist, furthestHit, pixelOpaque));
-                    
-                    furthestHit = select(opaqueAndTex, rayTravelDist, furthestHit);
-                    closestHit = select(opaqueAndTex, rayPos, closestHit);
-                    lightIntensity = select(opaqueAndTex, 1 + (-sign(delta) * lightDirection[axis]) / 2.0f, lightIntensity);
-                }
-
-                rayPos += rayDelta;
-                rayTravelDist += 1.0f / abs(delta);
-            }
-            
-            if(skipRestOfPass)
-                break;
-        }
-                    
-        if(!wasBlockHit || skipRestOfPass) // don't do sky shadows
-            break;
-                    
-        // TODO why?
-        if(lightIntensity <= 0.5f)
-            break;
+        // vector to move by so that we move on axis by 1
+        const vec3 curAxisDelta = rayDir / abs(rayDir[axis]);
         
-        // prepare for shadows pass
-        rayOrigin = closestHit;
-        rayDir = lightDirection;
-        furthestHit = RENDER_DIST;
+
+        const float playerOffsetFromBlockEdge = fract(cameraPos[axis]);
+        if(rayDir[axis] > 0)
+            playerOffsetFromBlockEdge = 1.0f - playerOffsetFromBlockEdge;
+
+        float currentRayDist = playerOffsetFromBlockEdge / abs(rayDir[axis]);
+        
+        // set where the ray starts out
+        vec3 curRayPos = cameraPos + curAxisDelta * playerOffsetFromBlockEdge;
+
+        // decrement where we draw the face if it's a backface
+        if(rayDir[axis] < 0)
+            curRayPos[axis]--;
+
+        // do the raycast
+        while (currentRayDist < farthestRayDist)
+        {
+            // convert ray coords to world coords
+            const ivec3 rayWorldPos = ivec3(curRayPos.x - WORLD_SIZE, curRayPos.y - WORLD_HEIGHT, curRayPos.z - WORLD_SIZE);
+
+            // if ray exits the world
+            const vec3 lessThanWorld = step(vec3(0, -2, 0), rayWorldPos);
+            const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), rayWorldPos);
+                
+            bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
+            if(!inWorld)
+                break;
+                
+            const int blockHitID = rayWorldPos.y < 0 ? BLOCK_AIR : int(imageLoad(world, rayWorldPos).x);
+            
+            if (blockHitID != BLOCK_AIR) // we hit a block
+            {
+                const int texFetchX = int((axis != AXIS_Y) ? int(mod((curRayPos.x + curRayPos.z) * TEXTURE_RES, TEXTURE_RES)) :
+                                                    int(mod(curRayPos.x * TEXTURE_RES, TEXTURE_RES)));
+                const int texFetchY = int((axis != AXIS_Y) ? int(mod(curRayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES) :
+                                                    int(mod(curRayPos.z * TEXTURE_RES, TEXTURE_RES)) + (curAxisDelta.y < 0.0F ? TEXTURE_RES * 2 : 0));
+
+                const vec3 textureColor = texture(textureAtlas, vec2(
+                                                    texFetchX / float(TEXTURE_RES), 
+                                                    (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
+
+                if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
+                    pixelColor = textureColor;
+                    fogIntensity = currentRayDist / RENDER_DIST;
+                    wasBlockHit = true;
+                }
+                    
+                farthestRayDist = currentRayDist;
+                lightIntensity = 1 + (-sign(rayDir[axis]) * lightDirection[axis]) / 2.0f;
+            } else {
+                curRayPos += curAxisDelta;
+                currentRayDist += 1.0f / abs(rayDir[axis]);
+            }
+        }
     }
     
     return wasBlockHit ? mix(pixelColor, skyColor, fogIntensity) * mix(ambColor, sunColor, lightIntensity)
