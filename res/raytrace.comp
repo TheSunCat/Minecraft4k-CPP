@@ -37,10 +37,15 @@ uniform vec3 sunColor;
 uniform vec3 ambColor;
 uniform vec3 skyColor;
 
+float minimum(in vec3 v)
+{
+    return min(min(v.x, v.y), v.z);
+}
+
 vec3 raytrace(in ivec2 pixel_coords)
 {
     const vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / frustumDiv;
-    
+
     // rotate frustum space to world space
     const float temp = camera.cosPitch + frustumRay.y * camera.sinPitch;
     
@@ -57,65 +62,60 @@ vec3 raytrace(in ivec2 pixel_coords)
     float farthestRayDist = RENDER_DIST;
     
     bool wasBlockHit = false;
+
+    // vector to move by so that we move on axis by 1
+    const vec3 moveByDelta = rayDir / minimum(abs(rayDir));
     
-    for(int axis = 0; axis < 3; axis++)
+
+    vec3 offsetFromBlockEdge = fract(cameraPos);
+    if(rayDir.x > 0)
+        offsetFromBlockEdge.x = 1.0f - offsetFromBlockEdge.x;
+    if(rayDir.y > 0)
+        offsetFromBlockEdge.y = 1.0f - offsetFromBlockEdge.y;
+    if(rayDir.z > 0)
+        offsetFromBlockEdge.z = 1.0f - offsetFromBlockEdge.z;
+    
+    float currentRayDist = 0;//offsetFromBlockEdge / abs(minimum(offsetFromBlockEdge));
+        
+    // set where the ray starts out
+    vec3 curRayPos = cameraPos + moveByDelta * offsetFromBlockEdge;
+    
+
+    // do the raycast
+    while (currentRayDist < farthestRayDist)
     {
-        // vector to move by so that we move on axis by 1
-        const vec3 curAxisDelta = rayDir / abs(rayDir[axis]);
-        
+        // convert ray coords to world coords
+        const ivec3 rayWorldPos = ivec3(curRayPos.x - WORLD_SIZE, curRayPos.y - WORLD_HEIGHT, curRayPos.z - WORLD_SIZE);
 
-        const float playerOffsetFromBlockEdge = fract(cameraPos[axis]);
-        if(rayDir[axis] > 0)
-            playerOffsetFromBlockEdge = 1.0f - playerOffsetFromBlockEdge;
-
-        float currentRayDist = playerOffsetFromBlockEdge / abs(rayDir[axis]);
-        
-        // set where the ray starts out
-        vec3 curRayPos = cameraPos + curAxisDelta * playerOffsetFromBlockEdge;
-
-        // decrement where we draw the face if it's a backface
-        if(rayDir[axis] < 0)
-            curRayPos[axis]--;
-
-        // do the raycast
-        while (currentRayDist < farthestRayDist)
-        {
-            // convert ray coords to world coords
-            const ivec3 rayWorldPos = ivec3(curRayPos.x - WORLD_SIZE, curRayPos.y - WORLD_HEIGHT, curRayPos.z - WORLD_SIZE);
-
-            // if ray exits the world
-            const vec3 lessThanWorld = step(vec3(0, -2, 0), rayWorldPos);
-            const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), rayWorldPos);
+        // if ray exits the world
+        const vec3 lessThanWorld = step(vec3(0, -2, 0), rayWorldPos);
+        const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), rayWorldPos);
                 
-            bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
-            if(!inWorld)
-                break;
+        bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
+        if(!inWorld)
+            break;
                 
-            const int blockHitID = rayWorldPos.y < 0 ? BLOCK_AIR : int(imageLoad(world, rayWorldPos).x);
+        const int blockHitID = rayWorldPos.y < 0 ? BLOCK_AIR : int(imageLoad(world, rayWorldPos).x);
             
-            if (blockHitID != BLOCK_AIR) // we hit a block
-            {
-                const int texFetchX = int((axis != AXIS_Y) ? int(mod((curRayPos.x + curRayPos.z) * TEXTURE_RES, TEXTURE_RES)) :
-                                                    int(mod(curRayPos.x * TEXTURE_RES, TEXTURE_RES)));
-                const int texFetchY = int((axis != AXIS_Y) ? int(mod(curRayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES) :
-                                                    int(mod(curRayPos.z * TEXTURE_RES, TEXTURE_RES)) + (curAxisDelta.y < 0.0F ? TEXTURE_RES * 2 : 0));
+        if (blockHitID != BLOCK_AIR) // we hit a block
+        {
+            const int texFetchX = int(mod((curRayPos.x + curRayPos.z) * TEXTURE_RES, TEXTURE_RES));
+            const int texFetchY = int(mod(curRayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
 
-                const vec3 textureColor = texture(textureAtlas, vec2(
-                                                    texFetchX / float(TEXTURE_RES), 
-                                                    (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
+            const vec3 textureColor = texture(textureAtlas, vec2(
+                                                texFetchX / float(TEXTURE_RES), 
+                                                (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
 
-                if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
-                    pixelColor = textureColor;
-                    fogIntensity = currentRayDist / RENDER_DIST;
-                    wasBlockHit = true;
-                }
-                    
-                farthestRayDist = currentRayDist;
-                lightIntensity = 1 + (-sign(rayDir[axis]) * lightDirection[axis]) / 2.0f;
-            } else {
-                curRayPos += curAxisDelta;
-                currentRayDist += 1.0f / abs(rayDir[axis]);
+            if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
+                pixelColor = textureColor;
+                fogIntensity = currentRayDist / RENDER_DIST;
+                wasBlockHit = true;
             }
+                    
+            farthestRayDist = currentRayDist;
+        } else {
+            curRayPos += rayDir;
+            currentRayDist += 1.0f / length(rayDir);
         }
     }
     
