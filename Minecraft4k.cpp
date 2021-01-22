@@ -8,6 +8,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+
 
 #include "Constants.h"
 #include "Shader.h"
@@ -509,7 +512,7 @@ void run(GLFWwindow* window) {
 
         raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
 
-        std::cout << hoveredBlockPos << "\n";
+        //std::cout << hoveredBlockPos << "\n";
 
         if (render)
         {
@@ -532,17 +535,12 @@ void run(GLFWwindow* window) {
                 computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
                 computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
                 computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
+                computeShader.setVec2("camera.frustumDiv", frustumDiv);
+                computeShader.setVec3("camera.pos", playerPos);
 
-                computeShader.setVec2("frustumDiv", frustumDiv);
 
-                computeShader.setVec3("cameraPos", playerPos);
-
-                computeShader.setVec3("hoveredBlockPos", hoveredBlockPos);
-
-                computeShader.setVec3("lightDirection", lightDirection);
-                computeShader.setVec3("sunColor", sunColor);
-                computeShader.setVec3("ambColor", ambColor);
                 computeShader.setVec3("skyColor", skyColor);
+
 
                 glInvalidateTexImage(screenTexture, 0);
 
@@ -777,8 +775,8 @@ int main(const int argc, const char** argv)
 
     std::cout << "Building shaders... ";
     std::stringstream defines;
-    defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
-            << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
+    defines << "#define WORLD_SIZE " << WORLD_SIZE * 2 << "\n"
+            << "#define WORLD_HEIGHT " << WORLD_HEIGHT * 2 << "\n"
             << "#define TEXTURE_RES " << TEXTURE_RES << "\n"
             << "#define RENDER_DIST " << RENDER_DIST << "\n";
     const std::string definesStr = defines.str();

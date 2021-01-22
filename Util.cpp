@@ -3,6 +3,8 @@
 #include <chrono>
 #include <complex>
 #include <iostream>
+#include <glm/geometric.hpp>
+#include <glm/trigonometric.hpp>
 
 long long currentTime()
 {
@@ -42,7 +44,7 @@ int Random::next(const int bits)
 
 float Random::nextFloat()
 {
-    return next(24) / float(1 << 24);
+    return float(next(24)) / float(1 << 24);
 }
 
 int Random::nextInt()
@@ -196,4 +198,13 @@ std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3)
 {
     os << vec3.x << ", " << vec3.y << ", " << vec3.z;
     return os;
+}
+
+glm::vec3 rotToVec3(const float yaw, const float pitch)
+{
+    glm::vec3 ret;
+    ret.x = cos(glm::radians(yaw)) * (pitch == 0 ? 1 : cos(glm::radians(pitch)));
+    ret.y = pitch == 0 ? 0 : sin(glm::radians(pitch));
+    ret.z = sin(glm::radians(yaw)) * (pitch == 0 ? 1 : cos(glm::radians(pitch)));
+    return glm::normalize(ret);
 }

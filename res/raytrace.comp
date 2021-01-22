@@ -1,50 +1,256 @@
 #version 430
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
-layout(r8ui, binding = 1) uniform uimage3D world;
+layout(r8ui, binding = 1) uniform uimage3D blockData;
 
+//! #define WORLD_SIZE 64
+//! #define WORLD_HEIGHT 64
+
+#define BLOCK_AIR 0
+
+uniform sampler2D textureAtlas;
+
+struct Camera
+{
+    vec3 pos;
+    float cosYaw;
+    float cosPitch;
+    float sinYaw;
+    float sinPitch;
+    vec2 frustumDiv;
+};
+
+uniform vec2 screenSize;
+uniform Camera camera;
+
+// get the block at the specified position in the world
+int getBlock(ivec3 coords)
+{
+    return int(imageLoad(blockData, coords).x);
+}
 
 #define AXIS_X 0
 #define AXIS_Y 1
 #define AXIS_Z 2
 
-#define BLOCK_AIR 0
-#define BLOCK_NEW 9
-
-#define PASS_TEXTURE 0
-
-#define select(condition, a, b) ((condition) ? (a) : (b))
-
-struct Camera
+// Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
+// Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
+vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int axis)
 {
-    float cosYaw;
-    float cosPitch;
-    float sinYaw;
-    float sinPitch;
-};
+    int x = int(start.x);
+    int y = int(start.y);
+    int z = int(start.z);
 
-uniform vec2 screenSize;
-uniform Camera camera;
-uniform vec2 frustumDiv;
-uniform vec3 cameraPos;
-uniform vec3 hoveredBlockPos;
+    if (y < 0 || y >= WORLD_HEIGHT || x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE)
+    {
+        hit = false;
+        return (start) / 100;
+    }
 
-uniform sampler2D textureAtlas;
+    // Determine the chunk-relative position of the ray using a bit-mask
+    int i = x - WORLD_SIZE;
+    int j = y - WORLD_HEIGHT;
+    int k = z - WORLD_SIZE;
 
-uniform vec3 lightDirection;
+    // Calculate the index of this block in the chunk data[] array
+    int access = j + i * WORLD_SIZE + k * (WORLD_SIZE * WORLD_SIZE);
 
-uniform vec3 sunColor;
-uniform vec3 ambColor;
-uniform vec3 skyColor;
+    // Calculate the end position of the ray
+    vec3 end = start + velocity;
 
-float minimum(in vec3 v)
-{
-    return min(min(v.x, v.y), v.z);
+    // If the start and end positions of the ray both lie on the same coordinate on the voxel grid
+    if (x == end.x && y == end.y && z == end.z)
+    {
+        return vec3(0, 0, 1);
+
+        // If the block is empty
+        if (getBlock(ivec3(i, j, k)) == BLOCK_AIR)
+        {
+            hit = false;
+        }
+
+        // Else the ray begins and ends within the same non-empty block
+        else
+        {
+            hit = true;
+        }
+
+        return vec3(0, 0, 0);
+    }
+
+    // These variables are used to determine whether the ray has left the current working chunk.
+    //  For example when travelling in the negative Y direction,
+    //  if j == -1 then we have left the current working chunk
+    int iComparison, jComparison, kComparison;
+
+    // When leaving the current working chunk, the chunk-relative position must be reset.
+    //  For example when travelling in the negative Y direction,
+    //  j should be reset to CHUNK_SIZE - 1 when entering the new current working chunk
+    int iReset, jReset, kReset;
+
+    // When leaving the current working chunk, the access variable must also be updated.
+    //  These values store how much to add or subtract from the access, depending on
+    //  the direction of the ray:
+    int xAccessReset, yAccessReset, zAccessReset;
+
+    // The amount to increase i, j and k in each axis (either 1 or -1)
+    int iStep, jStep, kStep;
+
+    // When incrementing j, the chunk access is simply increased by 1
+    // When incrementing i, the chunk access is increased by 32 (CHUNK_SIZE)
+    // When incrementing k, the chunk access is increased by 1024 (CHUNK_SIZE_SQUARED)
+    // These variables store whether to increase or decrease by the above amounts
+    int xAccessIncrement, zAccessIncrement;
+
+    // The distance to the closest voxel boundary in map units
+    double xDist, yDist, zDist;
+
+    if (velocity.x > 0)
+    {
+        iStep = 1;
+        iComparison = WORLD_SIZE;
+        iReset = 0;
+        xAccessReset = -(WORLD_SIZE * WORLD_SIZE);
+        xAccessIncrement = WORLD_SIZE;
+        xDist = (x - start.x + 1);
+    }
+    else
+    {
+        iStep = -1;
+        iComparison = -1;
+        iReset = WORLD_SIZE - 1;
+        xAccessReset = WORLD_SIZE * WORLD_SIZE;
+        xAccessIncrement = -WORLD_SIZE;
+        xDist = (start.x - x);
+    }
+
+    if (velocity.y > 0)
+    {
+        jStep = 1;
+        jComparison = WORLD_SIZE;
+        jReset = 0;
+        yAccessReset = -WORLD_SIZE;
+        yDist = (y - start.y + 1);
+    }
+    else
+    {
+        jStep = -1;
+        jComparison = -1;
+        jReset = WORLD_SIZE - 1;
+        yAccessReset = WORLD_SIZE;
+        yDist = (start.y - y);
+    }
+
+    if (velocity.z > 0)
+    {
+        kStep = 1;
+        kComparison = WORLD_SIZE;
+        kReset = 0;
+        zAccessIncrement = WORLD_SIZE * WORLD_SIZE;
+        zAccessReset = -(WORLD_SIZE * WORLD_SIZE * WORLD_SIZE);
+        zDist = (z - start.z + 1);
+    }
+    else
+    {
+        kStep = -1;
+        kComparison = -1;
+        kReset = WORLD_SIZE - 1;
+        zAccessIncrement = -(WORLD_SIZE * WORLD_SIZE);
+        zAccessReset = (WORLD_SIZE * WORLD_SIZE * WORLD_SIZE);
+        zDist = (start.z - z);
+    }
+
+    // This variable is used to track the current progress throughout the ray march
+    double t = 0.0;
+
+    velocity = normalize(velocity);
+    double xInverted = abs(1 / velocity.x);
+    double yInverted = abs(1 / velocity.y);
+    double zInverted = abs(1 / velocity.z);
+
+    // Determine the distance to the closest voxel boundary in units of t
+    //  - These values indicate how far we have to travel along the ray to reach the next voxel
+    //  - If any component of the direction is perpendicular to an axis, the distance is double.PositiveInfinity
+    double xDistance = velocity.x == 0 ? 99999 : xInverted * xDist;
+    double yDistance = velocity.y == 0 ? 99999 : yInverted * yDist;
+    double zDistance = velocity.z == 0 ? 99999 : zInverted * zDist;
+
+    while (t <= maximum)
+    {
+        // Exit check
+        if (getBlock(ivec3(i, j, k)) != BLOCK_AIR)
+        {
+            hit = true;
+            return vec3(1, 0, 0);
+        }
+
+        // Determine the closest voxel boundary
+        if (yDistance < xDistance)
+        {
+            if (yDistance < zDistance)
+            {
+                // Advance to the closest voxel boundary in the Y direction
+
+                // Increment the chunk-relative position and the block access position
+                j += jStep;
+                access += jStep;
+
+                // Check if we have exited the current working chunk.
+                // This means that j is either -1 or 32
+                // TODO removed chunks lol
+
+                // Update our progress in the ray 
+                t = yDistance;
+
+                // Set the new distance to the next voxel Y boundary
+                yDistance += yInverted;
+
+                // For collision purposes we also store the last axis that the ray collided with
+                // This allows us to reflect particle velocity on the correct axis
+                axis = AXIS_Y;
+            }
+            else
+            {
+                k += kStep;
+                access += zAccessIncrement;
+
+                // TODO removed chunks
+
+                t = zDistance;
+                zDistance += zInverted;
+                axis = AXIS_Z;
+            }
+        }
+        else if (xDistance < zDistance)
+        {
+            i += iStep;
+            access += xAccessIncrement;
+
+            // TODO removed chunks
+
+            t = xDistance;
+            xDistance += xInverted;
+            axis = AXIS_X;
+        }
+        else
+        {
+            k += kStep;
+            access += zAccessIncrement;
+
+            // TODO removed chunks
+
+            t = zDistance;
+            zDistance += zInverted;
+            axis = AXIS_Z;
+        }
+    }
+
+    hit = false;
 }
 
-vec3 raytrace(in ivec2 pixel_coords)
+vec3 getPixel(in vec2 pixel_coords)
 {
-    const vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / frustumDiv;
+    const vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / camera.frustumDiv;
 
     // rotate frustum space to world space
     const float temp = camera.cosPitch + frustumRay.y * camera.sinPitch;
@@ -52,82 +258,26 @@ vec3 raytrace(in ivec2 pixel_coords)
     vec3 rayDir = normalize(vec3(frustumRay.x * camera.cosYaw + temp * camera.sinYaw,
                                  frustumRay.y * camera.cosPitch - camera.sinPitch,
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
-    
-    const float sunDot = clamp(dot(rayDir, lightDirection), 0, 1);
 
-    float fogIntensity = 0.0f;
-    float lightIntensity = 1.0f;
-    vec3 pixelColor;
-    
-    float farthestRayDist = RENDER_DIST;
-    
-    bool wasBlockHit = false;
+    bool hit = false;
+    int axis = AXIS_X;
 
-    // vector to move by so that we move on axis by 1
-    const vec3 moveByDelta = rayDir / minimum(abs(rayDir));
+    vec3 color = rayMarch(camera.pos, rayDir, 99.0, hit, axis);
+
     
+//    if(hit)
+//        color = vec3(0.5);
+//    else
+//        color = vec3(0.1);
 
-    vec3 offsetFromBlockEdge = fract(cameraPos);
-    if(rayDir.x > 0)
-        offsetFromBlockEdge.x = 1.0f - offsetFromBlockEdge.x;
-    if(rayDir.y > 0)
-        offsetFromBlockEdge.y = 1.0f - offsetFromBlockEdge.y;
-    if(rayDir.z > 0)
-        offsetFromBlockEdge.z = 1.0f - offsetFromBlockEdge.z;
-    
-    float currentRayDist = 0;//offsetFromBlockEdge / abs(minimum(offsetFromBlockEdge));
-        
-    // set where the ray starts out
-    vec3 curRayPos = cameraPos + moveByDelta * offsetFromBlockEdge;
-    
-
-    // do the raycast
-    while (currentRayDist < farthestRayDist)
-    {
-        // convert ray coords to world coords
-        const ivec3 rayWorldPos = ivec3(curRayPos.x - WORLD_SIZE, curRayPos.y - WORLD_HEIGHT, curRayPos.z - WORLD_SIZE);
-
-        // if ray exits the world
-        const vec3 lessThanWorld = step(vec3(0, -2, 0), rayWorldPos);
-        const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), rayWorldPos);
-                
-        bool inWorld = dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
-        if(!inWorld)
-            break;
-                
-        const int blockHitID = rayWorldPos.y < 0 ? BLOCK_AIR : int(imageLoad(world, rayWorldPos).x);
-            
-        if (blockHitID != BLOCK_AIR) // we hit a block
-        {
-            const int texFetchX = int(mod((curRayPos.x + curRayPos.z) * TEXTURE_RES, TEXTURE_RES));
-            const int texFetchY = int(mod(curRayPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
-
-            const vec3 textureColor = texture(textureAtlas, vec2(
-                                                texFetchX / float(TEXTURE_RES), 
-                                                (texFetchY + TEXTURE_RES * 3 * blockHitID) / float(TEXTURE_RES * 48))).xyz;
-
-            if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
-                pixelColor = textureColor;
-                fogIntensity = currentRayDist / RENDER_DIST;
-                wasBlockHit = true;
-            }
-                    
-            farthestRayDist = currentRayDist;
-        } else {
-            curRayPos += rayDir;
-            currentRayDist += 1.0f / length(rayDir);
-        }
-    }
-    
-    return wasBlockHit ? mix(pixelColor, skyColor, fogIntensity) * mix(ambColor, sunColor, lightIntensity)
-                       : mix(skyColor, sunColor, 0.5 * pow(sunDot + 0.2, 5));
+    return color;
 }
 
 void main() {
     // get index in global work group i.e x,y position
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
     
-    vec4 pixel = vec4(raytrace(pixel_coords), 1);
+    vec4 pixel = vec4(getPixel(pixel_coords), 1);
 
     // output to image
     imageStore(img_output, pixel_coords, pixel);

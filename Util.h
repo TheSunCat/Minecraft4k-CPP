@@ -59,3 +59,5 @@ void GLAPIENTRY error_callback(GLenum source,
     const void* userParam);
 
 std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3);
+
+glm::vec3 rotToVec3(float yaw, float pitch);
