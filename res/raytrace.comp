@@ -29,40 +29,44 @@ int getBlock(ivec3 coords)
     return int(imageLoad(blockData, coords).x);
 }
 
+bool inWorld(ivec3 pos)
+{
+    const vec3 lessThanWorld = step(vec3(0, -2, 0), pos);
+    const vec3 greaterThanWorld = step(vec3(WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE), pos);
+
+    return dot(lessThanWorld, lessThanWorld) * dot(greaterThanWorld, greaterThanWorld) == 0;
+}
+
 #define AXIS_X 0
 #define AXIS_Y 1
 #define AXIS_Z 2
+
+// ~~stolen~~ took "inspiration" from https://github.com/Vercidium/voxel-ray-marching/blob/master/source/Map.cs
 
 // Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
 // Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
 vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int axis)
 {
-    int x = int(start.x);
-    int y = int(start.y);
-    int z = int(start.z);
+    ivec3 iStart = ivec3(start);
 
-    if (y < 0 || y >= WORLD_HEIGHT || x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE)
+    if (!inWorld(iStart))
     {
         hit = false;
         return vec3(1, 0, 0);
     }
+    
 
     // Determine the chunk-relative position of the ray using a bit-mask
-    int i = x - (WORLD_SIZE / 2);
-    int j = y - (WORLD_HEIGHT / 2);
-    int k = z - WORLD_SIZE / 2;
-
-    // Calculate the index of this block in the chunk data[] array
-    int access = j + i * WORLD_SIZE + k * (WORLD_SIZE * WORLD_SIZE);
+    int i = iStart.x - WORLD_SIZE / 2;
+    int j = iStart.y - WORLD_HEIGHT / 2;
+    int k = iStart.z - WORLD_SIZE / 2;
 
     // Calculate the end position of the ray
     vec3 end = start + velocity;
 
     // If the start and end positions of the ray both lie on the same coordinate on the voxel grid
-    if (x == end.x && y == end.y && z == end.z)
+    if (iStart == end)
     {
-        return vec3(0, 1, 0);
-
         // If the block is empty
         if (getBlock(ivec3(i, j, k)) == BLOCK_AIR)
         {
@@ -74,104 +78,61 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         {
             hit = true;
         }
+
+        return vec3(1, 0, 0); // to find out when this happens
     }
-
-    // These variables are used to determine whether the ray has left the current working chunk.
-    //  For example when travelling in the negative Y direction,
-    //  if j == -1 then we have left the current working chunk
-    int iComparison, jComparison, kComparison;
-
-    // When leaving the current working chunk, the chunk-relative position must be reset.
-    //  For example when travelling in the negative Y direction,
-    //  j should be reset to CHUNK_SIZE - 1 when entering the new current working chunk
-    int iReset, jReset, kReset;
-
-    // When leaving the current working chunk, the access variable must also be updated.
-    //  These values store how much to add or subtract from the access, depending on
-    //  the direction of the ray:
-    int xAccessReset, yAccessReset, zAccessReset;
 
     // The amount to increase i, j and k in each axis (either 1 or -1)
     int iStep, jStep, kStep;
 
-    // When incrementing j, the chunk access is simply increased by 1
-    // When incrementing i, the chunk access is increased by 32 (CHUNK_SIZE)
-    // When incrementing k, the chunk access is increased by 1024 (CHUNK_SIZE_SQUARED)
-    // These variables store whether to increase or decrease by the above amounts
-    int xAccessIncrement, zAccessIncrement;
-
     // The distance to the closest voxel boundary in map units
-    double xDist, yDist, zDist;
+    float xDist, yDist, zDist;
 
     if (velocity.x > 0)
     {
         iStep = 1;
-        iComparison = WORLD_SIZE;
-        iReset = 0;
-        xAccessReset = -(WORLD_SIZE * WORLD_SIZE);
-        xAccessIncrement = WORLD_SIZE;
-        xDist = (x - start.x + 1);
+        xDist = (iStart.x - start.x + 1);
     }
     else
     {
         iStep = -1;
-        iComparison = -1;
-        iReset = WORLD_SIZE - 1;
-        xAccessReset = WORLD_SIZE * WORLD_SIZE;
-        xAccessIncrement = -WORLD_SIZE;
-        xDist = (start.x - x);
+        xDist = (start.x - iStart.x);
     }
 
     if (velocity.y > 0)
     {
         jStep = 1;
-        jComparison = WORLD_SIZE;
-        jReset = 0;
-        yAccessReset = -WORLD_SIZE;
-        yDist = (y - start.y + 1);
+        yDist = (iStart.y - start.y + 1);
     }
     else
     {
         jStep = -1;
-        jComparison = -1;
-        jReset = WORLD_SIZE - 1;
-        yAccessReset = WORLD_SIZE;
-        yDist = (start.y - y);
+        yDist = (start.y - iStart.y);
     }
 
     if (velocity.z > 0)
     {
         kStep = 1;
-        kComparison = WORLD_SIZE;
-        kReset = 0;
-        zAccessIncrement = WORLD_SIZE * WORLD_SIZE;
-        zAccessReset = -(WORLD_SIZE * WORLD_SIZE * WORLD_SIZE);
-        zDist = (z - start.z + 1);
+        zDist = (iStart.z - start.z + 1);
     }
     else
     {
         kStep = -1;
-        kComparison = -1;
-        kReset = WORLD_SIZE - 1;
-        zAccessIncrement = -(WORLD_SIZE * WORLD_SIZE);
-        zAccessReset = (WORLD_SIZE * WORLD_SIZE * WORLD_SIZE);
-        zDist = (start.z - z);
+        zDist = (start.z - iStart.z);
     }
 
     // This variable is used to track the current progress throughout the ray march
-    double t = 0.0;
+    float t = 0.0;
 
-    velocity = normalize(velocity);
-    double xInverted = abs(1 / velocity.x);
-    double yInverted = abs(1 / velocity.y);
-    double zInverted = abs(1 / velocity.z);
+    
+    vec3 vInverted = abs(1 / velocity);
 
     // Determine the distance to the closest voxel boundary in units of t
     //  - These values indicate how far we have to travel along the ray to reach the next voxel
-    //  - If any component of the direction is perpendicular to an axis, the distance is double.PositiveInfinity
-    double xDistance = velocity.x == 0 ? 99999 : xInverted * xDist;
-    double yDistance = velocity.y == 0 ? 99999 : yInverted * yDist;
-    double zDistance = velocity.z == 0 ? 99999 : zInverted * zDist;
+    //  - If any component of the direction is perpendicular to an axis, the distance is float.PositiveInfinity
+    float xDistance = velocity.x == 0 ? 99999 : vInverted.x * xDist;
+    float yDistance = velocity.y == 0 ? 99999 : vInverted.y * yDist;
+    float zDistance = velocity.z == 0 ? 99999 : vInverted.z * zDist;
 
     while (t <= maximum)
     {
@@ -191,17 +152,12 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
                 // Increment the chunk-relative position and the block access position
                 j += jStep;
-                access += jStep;
-
-                // Check if we have exited the current working chunk.
-                // This means that j is either -1 or 32
-                // TODO removed chunks lol
 
                 // Update our progress in the ray 
                 t = yDistance;
 
                 // Set the new distance to the next voxel Y boundary
-                yDistance += yInverted;
+                yDistance += vInverted.y;
 
                 // For collision purposes we also store the last axis that the ray collided with
                 // This allows us to reflect particle velocity on the correct axis
@@ -210,40 +166,33 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             else
             {
                 k += kStep;
-                access += zAccessIncrement;
-
-                // TODO removed chunks
 
                 t = zDistance;
-                zDistance += zInverted;
+                zDistance += vInverted.z;
                 axis = AXIS_Z;
             }
         }
         else if (xDistance < zDistance)
         {
             i += iStep;
-            access += xAccessIncrement;
-
-            // TODO removed chunks
 
             t = xDistance;
-            xDistance += xInverted;
+            xDistance += vInverted.x;
             axis = AXIS_X;
         }
         else
         {
             k += kStep;
-            access += zAccessIncrement;
-
-            // TODO removed chunks
 
             t = zDistance;
-            zDistance += zInverted;
+            zDistance += vInverted.z;
             axis = AXIS_Z;
         }
     }
 
     hit = false;
+
+    return vec3(0, 0, 0);
 }
 
 vec3 getPixel(in vec2 pixel_coords)
@@ -260,7 +209,7 @@ vec3 getPixel(in vec2 pixel_coords)
     bool hit = false;
     int axis = AXIS_X;
 
-    vec3 color = rayMarch(camera.pos, rayDir, 99.0, hit, axis);
+    vec3 color = rayMarch(camera.pos, rayDir, 60.0, hit, axis);
 
 
     return color;
