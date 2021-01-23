@@ -5,6 +5,7 @@ layout(r8ui, binding = 1) uniform uimage3D blockData;
 
 //! #define WORLD_SIZE 64
 //! #define WORLD_HEIGHT 64
+//! #define RENDER_DIST 100.0
 
 #define BLOCK_AIR 0
 
@@ -67,72 +68,31 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     // If the start and end positions of the ray both lie on the same coordinate on the voxel grid
     if (iStart == end)
     {
-        // If the block is empty
-        if (getBlock(ivec3(i, j, k)) == BLOCK_AIR)
-        {
-            hit = false;
-        }
+        // If true, the ray begins and ends within the same non-empty block.
+        hit = getBlock(ivec3(i, j, k)) != BLOCK_AIR;
+        
 
-        // Else the ray begins and ends within the same non-empty block
-        else
-        {
-            hit = true;
-        }
-
-        return vec3(1, 0, 0); // to find out when this happens
+        return vec3(1, 0, 0); // TODO is this ever hit?
     }
 
     // The amount to increase i, j and k in each axis (either 1 or -1)
-    int iStep, jStep, kStep;
+    ivec3 ijkStep = ivec3(sign(velocity));
 
-    // The distance to the closest voxel boundary in map units
-    float xDist, yDist, zDist;
-
-    if (velocity.x > 0)
-    {
-        iStep = 1;
-        xDist = (iStart.x - start.x + 1);
-    }
-    else
-    {
-        iStep = -1;
-        xDist = (start.x - iStart.x);
-    }
-
-    if (velocity.y > 0)
-    {
-        jStep = 1;
-        yDist = (iStart.y - start.y + 1);
-    }
-    else
-    {
-        jStep = -1;
-        yDist = (start.y - iStart.y);
-    }
-
-    if (velocity.z > 0)
-    {
-        kStep = 1;
-        zDist = (iStart.z - start.z + 1);
-    }
-    else
-    {
-        kStep = -1;
-        zDist = (start.z - iStart.z);
-    }
 
     // This variable is used to track the current progress throughout the ray march
     float t = 0.0;
-
     
     vec3 vInverted = abs(1 / velocity);
 
+
+    // The distance to the closest voxel boundary in map units
+    vec3 signs = sign(velocity);
+    vec3 dist = (iStart - start) * signs; // (start - iStart) == -(iStart - start)
+    dist += max(signs, vec3(0)); // idk if there's a better way to convert -1 , 1 to 0 , 1
+
     // Determine the distance to the closest voxel boundary in units of t
     //  - These values indicate how far we have to travel along the ray to reach the next voxel
-    //  - If any component of the direction is perpendicular to an axis, the distance is float.PositiveInfinity
-    float xDistance = velocity.x == 0 ? 99999 : vInverted.x * xDist;
-    float yDistance = velocity.y == 0 ? 99999 : vInverted.y * yDist;
-    float zDistance = velocity.z == 0 ? 99999 : vInverted.z * zDist;
+    dist *= vInverted; // TODO If any component of the direction is perpendicular to an axis, the distance is float.PositiveInfinity
 
     while (t <= maximum)
     {
@@ -144,20 +104,20 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         }
 
         // Determine the closest voxel boundary
-        if (yDistance < xDistance)
+        if (dist.y < dist.x)
         {
-            if (yDistance < zDistance)
+            if (dist.y < dist.z)
             {
                 // Advance to the closest voxel boundary in the Y direction
 
                 // Increment the chunk-relative position and the block access position
-                j += jStep;
+                j += ijkStep.y;
 
                 // Update our progress in the ray 
-                t = yDistance;
+                t = dist.y;
 
                 // Set the new distance to the next voxel Y boundary
-                yDistance += vInverted.y;
+                dist.y += vInverted.y;
 
                 // For collision purposes we also store the last axis that the ray collided with
                 // This allows us to reflect particle velocity on the correct axis
@@ -165,29 +125,32 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             }
             else
             {
-                k += kStep;
+                k += ijkStep.z;
 
-                t = zDistance;
-                zDistance += vInverted.z;
+                t = dist.z;
+                dist.z += vInverted.z;
                 axis = AXIS_Z;
             }
         }
-        else if (xDistance < zDistance)
+        else if (dist.x < dist.z)
         {
-            i += iStep;
+            i += ijkStep.x;
 
-            t = xDistance;
-            xDistance += vInverted.x;
+            t = dist.x;
+            dist.x += vInverted.x;
             axis = AXIS_X;
         }
         else
         {
-            k += kStep;
+            k += ijkStep.z;
 
-            t = zDistance;
-            zDistance += vInverted.z;
+            t = dist.z;
+            dist.z += vInverted.z;
             axis = AXIS_Z;
         }
+
+        if(!inWorld(ivec3(i, j, k)))
+            break;
     }
 
     hit = false;
@@ -209,7 +172,7 @@ vec3 getPixel(in vec2 pixel_coords)
     bool hit = false;
     int axis = AXIS_X;
 
-    vec3 color = rayMarch(camera.pos, rayDir, 60.0, hit, axis);
+    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, hit, axis);
 
 
     return color;

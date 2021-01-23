@@ -151,7 +151,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     glGetProgramiv(ID, GL_LINK_STATUS, &success);
     if (!success)
     {
-        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
+        glGetProgramInfoLog(ID, 512, nullptr, infoLog);
         std::cout << "Failed to link compute shader \"" << computeName << "\"! Error log:\n" << infoLog << std::endl;
         return;
     }

@@ -64,7 +64,7 @@ glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 float cameraYaw = 0.0f;
 float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
-glm::vec2 frustumDiv = (SCR_RES * FOV) / defaultRes;
+glm::vec2 frustumDiv = (SCR_RES * FOV) / defaultRes; // TODO why divide by defaultRes? Removing doesn't seem to affect it.
 
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
@@ -78,19 +78,14 @@ uint8_t world[WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE];
 uint8_t hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
 
-bool render = true;
-bool compute = true;
-bool fullCompute = true;
-
-#define getw x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT
 static void setBlock(const int x, const int y, const int z, const uint8_t block)
 {
-    world[getw] = block;
+    world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT] = block;
 }
 
 static uint8_t getBlock(const int x, const int y, const int z)
 {
-    return world[getw];
+    return world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT];
 }
 
 static uint8_t getBlock(const glm::vec3& pos)
@@ -514,65 +509,61 @@ void run(GLFWwindow* window) {
 
         //std::cout << hoveredBlockPos << "\n";
 
-        if (render)
-        {
-            // Compute the raytracing!
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (compute)
-            {
-                frustumDiv = (SCR_RES * FOV) / defaultRes;
-
-                computeShader.use();
-
-                glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-                computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
-
-                glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-                computeShader.setInt("textureAtlas", 0);
-
-                computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
-                computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
-                computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
-                computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
-                computeShader.setVec2("camera.frustumDiv", frustumDiv);
-                computeShader.setVec3("camera.pos", playerPos);
+        // Compute the raytracing!
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-                computeShader.setVec3("skyColor", skyColor);
+        frustumDiv = (SCR_RES * FOV) / defaultRes;
+
+        computeShader.use();
+
+        glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
+        computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
+
+        glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
+        computeShader.setInt("textureAtlas", 0);
+
+        computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
+        computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
+        computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
+        computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
+        computeShader.setVec2("camera.frustumDiv", frustumDiv);
+        computeShader.setVec3("camera.pos", playerPos);
 
 
-                glInvalidateTexImage(screenTexture, 0);
+        computeShader.setVec3("skyColor", skyColor);
 
-                glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-                glDispatchCompute((SCR_RES.x + 15) / 16, (SCR_RES.y + 15) / 16, 1);
-                glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-                glUseProgram(0);
-            }
 
-            // render the screen texture
-            screenShader.use();
-            glEnableVertexAttribArray(0);
-            glEnableVertexAttribArray(2);
+        glInvalidateTexImage(screenTexture, 0);
 
-            glBindTexture(GL_TEXTURE_2D, screenTexture);
-            glBindBuffer(GL_ARRAY_BUFFER, buffer);
-            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+        glDispatchCompute((SCR_RES.x + 15) / 16, (SCR_RES.y + 15) / 16, 1);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        glUseProgram(0);
 
-            glDrawArrays(GL_TRIANGLES, 0, 6);
+        // render the screen texture
+        screenShader.use();
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(2);
 
-            glDisableVertexAttribArray(2);
-            glDisableVertexAttribArray(0);
+        glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glBindBuffer(GL_ARRAY_BUFFER, buffer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-            glUseProgram(0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-            glfwSwapBuffers(window);
-        }
+        glDisableVertexAttribArray(2);
+        glDisableVertexAttribArray(0);
 
+        glUseProgram(0);
+
+        glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
 
     glfwTerminate();
 }
@@ -694,20 +685,6 @@ void initTexture(GLuint* texture, const int width, const int height) {
 
 int main(const int argc, const char** argv)
 {
-    if(argc == 2)
-    {
-        std::string argument = argv[1];
-        switch(argument[0])
-        {
-        case 'a':
-            render = false;
-        case 's':
-            compute = false;
-        case 'd':
-            fullCompute = false;
-        }
-    }
-
     std::cout << "Initializing GLFW... ";
 
     if (!glfwInit())
@@ -782,18 +759,8 @@ int main(const int argc, const char** argv)
     const std::string definesStr = defines.str();
 
     screenShader = Shader("screen", "screen");
+    computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
 
-    if (fullCompute)
-        computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
-    else
-        computeShader = Shader(HasExtra::No, 
-       "#version 430\n"
-            "layout(local_size_x = 1, local_size_y = 1) in;\n"
-            "layout(rgba32f, binding = 0) uniform image2D img_output;\n"
-            "\n"
-            "void main() {\n"
-                "imageStore(img_output, ivec2(gl_GlobalInvocationID.xy), vec4(0.5));\n"
-            "}");
     std::cout << "Done!\n";
     
     glActiveTexture(GL_TEXTURE0);
