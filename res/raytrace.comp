@@ -44,13 +44,13 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     if (y < 0 || y >= WORLD_HEIGHT || x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE)
     {
         hit = false;
-        return (start) / 100;
+        return vec3(1, 0, 0);
     }
 
     // Determine the chunk-relative position of the ray using a bit-mask
-    int i = x - WORLD_SIZE;
-    int j = y - WORLD_HEIGHT;
-    int k = z - WORLD_SIZE;
+    int i = x - (WORLD_SIZE / 2);
+    int j = y - (WORLD_HEIGHT / 2);
+    int k = z - WORLD_SIZE / 2;
 
     // Calculate the index of this block in the chunk data[] array
     int access = j + i * WORLD_SIZE + k * (WORLD_SIZE * WORLD_SIZE);
@@ -61,7 +61,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     // If the start and end positions of the ray both lie on the same coordinate on the voxel grid
     if (x == end.x && y == end.y && z == end.z)
     {
-        return vec3(0, 0, 1);
+        return vec3(0, 1, 0);
 
         // If the block is empty
         if (getBlock(ivec3(i, j, k)) == BLOCK_AIR)
@@ -74,8 +74,6 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         {
             hit = true;
         }
-
-        return vec3(0, 0, 0);
     }
 
     // These variables are used to determine whether the ray has left the current working chunk.
@@ -181,7 +179,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         if (getBlock(ivec3(i, j, k)) != BLOCK_AIR)
         {
             hit = true;
-            return vec3(1, 0, 0);
+            return vec3(0, 0, 1); // we hit a block!
         }
 
         // Determine the closest voxel boundary
@@ -264,11 +262,6 @@ vec3 getPixel(in vec2 pixel_coords)
 
     vec3 color = rayMarch(camera.pos, rayDir, 99.0, hit, axis);
 
-    
-//    if(hit)
-//        color = vec3(0.5);
-//    else
-//        color = vec3(0.1);
 
     return color;
 }
