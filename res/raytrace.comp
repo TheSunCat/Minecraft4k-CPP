@@ -5,6 +5,7 @@ layout(r8ui, binding = 1) uniform uimage3D blockData;
 
 //! #define WORLD_SIZE 64
 //! #define WORLD_HEIGHT 64
+//! #define TEXTURE_RES 16
 //! #define RENDER_DIST 100.0
 
 #define BLOCK_AIR 0
@@ -20,9 +21,10 @@ struct Camera
     float sinPitch;
     vec2 frustumDiv;
 };
+uniform Camera camera;
 
 uniform vec2 screenSize;
-uniform Camera camera;
+uniform vec3 skyColor;
 
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
@@ -50,34 +52,15 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 {
     ivec3 iStart = ivec3(start);
 
-    if (!inWorld(iStart))
-    {
-        hit = false;
-        return vec3(1, 0, 0);
-    }
-    
 
     // Determine the chunk-relative position of the ray using a bit-mask
     int i = iStart.x - WORLD_SIZE / 2;
     int j = iStart.y - WORLD_HEIGHT / 2;
     int k = iStart.z - WORLD_SIZE / 2;
 
-    // Calculate the end position of the ray
-    vec3 end = start + velocity;
-
-    // If the start and end positions of the ray both lie on the same coordinate on the voxel grid
-    if (iStart == end)
-    {
-        // If true, the ray begins and ends within the same non-empty block.
-        hit = getBlock(ivec3(i, j, k)) != BLOCK_AIR;
-        
-
-        return vec3(1, 0, 0); // TODO is this ever hit?
-    }
 
     // The amount to increase i, j and k in each axis (either 1 or -1)
     ivec3 ijkStep = ivec3(sign(velocity));
-
 
     // This variable is used to track the current progress throughout the ray march
     float t = 0.0;
@@ -86,21 +69,44 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
 
     // The distance to the closest voxel boundary in map units
-    vec3 signs = sign(velocity);
-    vec3 dist = (iStart - start) * signs; // (start - iStart) == -(iStart - start)
-    dist += max(signs, vec3(0)); // idk if there's a better way to convert -1 , 1 to 0 , 1
+    vec3 dist = (iStart - start) * ijkStep; // (start - iStart) == -(iStart - start)
+    dist += max(ijkStep, vec3(0)); // idk if there's a better way to convert -1 , 1 to 0 , 1
 
     // Determine the distance to the closest voxel boundary in units of t
     //  - These values indicate how far we have to travel along the ray to reach the next voxel
     dist *= vInverted; // TODO If any component of the direction is perpendicular to an axis, the distance is float.PositiveInfinity
 
+
+
     while (t <= maximum)
     {
         // Exit check
-        if (getBlock(ivec3(i, j, k)) != BLOCK_AIR)
+        int blockHit = getBlock(ivec3(i, j, k));
+
+        if (blockHit != BLOCK_AIR)
         {
             hit = true;
-            return vec3(0, 0, 1); // we hit a block!
+            
+            vec3 hitPos = start + dist * t; // TODO figure this out
+
+            int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
+            int texFetchY = int(mod(hitPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
+
+
+            if (axis == AXIS_Y)
+            {
+                texFetchX = int(mod(hitPos.x * TEXTURE_RES, TEXTURE_RES));
+                texFetchY = int(mod(hitPos.z * TEXTURE_RES, TEXTURE_RES));
+
+                if (velocity.y < 0.0F) // looking at the underside of a block
+                    texFetchY += TEXTURE_RES * 2;
+            }
+
+            vec3 textureColor = vec3(texture(textureAtlas,
+                                            vec2((texFetchX) / float(TEXTURE_RES * 3.0),
+                                            (texFetchY * TEXTURE_RES + blockHit) / float(TEXTURE_RES * 16.0))));
+
+            return textureColor;
         }
 
         // Determine the closest voxel boundary
@@ -155,7 +161,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
     hit = false;
 
-    return vec3(0, 0, 0);
+    return skyColor;
 }
 
 vec3 getPixel(in vec2 pixel_coords)
