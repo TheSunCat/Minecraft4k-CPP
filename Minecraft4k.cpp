@@ -532,7 +532,9 @@ void run(GLFWwindow* window) {
         computeShader.setVec3("camera.pos", playerPos);
 
 
+        computeShader.setVec3("lightDirection", lightDirection);
         computeShader.setVec3("skyColor", skyColor);
+        computeShader.setVec3("sunColor", sunColor);
 
 
         glInvalidateTexImage(screenTexture, 0);

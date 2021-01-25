@@ -24,7 +24,12 @@ struct Camera
 uniform Camera camera;
 
 uniform vec2 screenSize;
+
+
+// lighting
+uniform vec3 lightDirection;
 uniform vec3 skyColor;
+uniform vec3 sunColor;
 
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
@@ -63,7 +68,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     ivec3 ijkStep = ivec3(sign(velocity));
 
     // This variable is used to track the current progress throughout the ray march
-    float t = 0.0;
+    float rayTravelDist = 0.0;
     
     vec3 vInverted = abs(1 / velocity);
 
@@ -78,7 +83,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
 
 
-    while (t <= maximum)
+    while (rayTravelDist <= maximum)
     {
         // Exit check
         int blockHit = getBlock(ivec3(i, j, k));
@@ -86,8 +91,8 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         if (blockHit != BLOCK_AIR)
         {
             hit = true;
-            
-            vec3 hitPos = start + dist * t; // TODO figure this out
+
+            vec3 hitPos = start + velocity * rayTravelDist; // TODO figure this out
 
             int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
             int texFetchY = int(mod(hitPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
@@ -103,8 +108,8 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             }
 
             vec3 textureColor = vec3(texture(textureAtlas,
-                                            vec2((texFetchX) / float(TEXTURE_RES * 3.0),
-                                            (texFetchY * TEXTURE_RES + blockHit) / float(TEXTURE_RES * 16.0))));
+                                            vec2((texFetchY) / float(TEXTURE_RES * 3.0),
+                                            (texFetchX + (16 * blockHit)) / float(TEXTURE_RES * 16.0))));
 
             return textureColor;
         }
@@ -120,7 +125,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
                 j += ijkStep.y;
 
                 // Update our progress in the ray 
-                t = dist.y;
+                rayTravelDist = dist.y;
 
                 // Set the new distance to the next voxel Y boundary
                 dist.y += vInverted.y;
@@ -133,7 +138,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             {
                 k += ijkStep.z;
 
-                t = dist.z;
+                rayTravelDist = dist.z;
                 dist.z += vInverted.z;
                 axis = AXIS_Z;
             }
@@ -142,7 +147,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         {
             i += ijkStep.x;
 
-            t = dist.x;
+            rayTravelDist = dist.x;
             dist.x += vInverted.x;
             axis = AXIS_X;
         }
@@ -150,7 +155,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
         {
             k += ijkStep.z;
 
-            t = dist.z;
+            rayTravelDist = dist.z;
             dist.z += vInverted.z;
             axis = AXIS_Z;
         }
@@ -161,7 +166,10 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
     hit = false;
 
-    return skyColor;
+    if (dot(velocity, lightDirection) > 0.99f)
+        return sunColor;
+    else
+        return skyColor;
 }
 
 vec3 getPixel(in vec2 pixel_coords)
