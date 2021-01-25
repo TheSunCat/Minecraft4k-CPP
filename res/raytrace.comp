@@ -28,6 +28,7 @@ uniform vec2 screenSize;
 
 // lighting
 uniform vec3 lightDirection;
+uniform vec3 ambColor;
 uniform vec3 skyColor;
 uniform vec3 sunColor;
 
@@ -114,7 +115,10 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             
 
             if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
-                return textureColor;
+                
+                float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
+
+                return textureColor * mix(ambColor, sunColor, lightIntensity);
             }
         }
 
@@ -170,10 +174,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
     hit = false;
 
-    if (dot(velocity, lightDirection) > 0.99f)
-        return sunColor;
-    else
-        return skyColor;
+    return mix(skyColor, sunColor, 0.5 * pow(clamp(dot(velocity, lightDirection), 0, 1) + 0.2, 5));
 }
 
 vec3 getPixel(in vec2 pixel_coords)

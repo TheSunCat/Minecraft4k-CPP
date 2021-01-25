@@ -534,6 +534,7 @@ void run(GLFWwindow* window) {
 
         computeShader.setVec3("lightDirection", lightDirection);
         computeShader.setVec3("skyColor", skyColor);
+        computeShader.setVec3("ambColor", ambColor);
         computeShader.setVec3("sunColor", sunColor);
 
 
