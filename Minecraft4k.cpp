@@ -246,7 +246,7 @@ void init()
 
                 for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
-                    setBlock(treeX, y, treeZ, BLOCK_NEW);
+                    setBlock(treeX, y, treeZ, BLOCK_WOOD);
                 }
 
                 // foliage

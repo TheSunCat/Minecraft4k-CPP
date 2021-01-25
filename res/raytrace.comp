@@ -94,11 +94,12 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
             vec3 hitPos = start + velocity * rayTravelDist; // TODO figure this out
 
+            // side of block
             int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
             int texFetchY = int(mod(hitPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
 
 
-            if (axis == AXIS_Y)
+            if (axis == AXIS_Y) // we hit the top/bottom of block
             {
                 texFetchX = int(mod(hitPos.x * TEXTURE_RES, TEXTURE_RES));
                 texFetchY = int(mod(hitPos.z * TEXTURE_RES, TEXTURE_RES));
@@ -108,10 +109,13 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             }
 
             vec3 textureColor = vec3(texture(textureAtlas,
-                                            vec2((texFetchY) / float(TEXTURE_RES * 3.0),
-                                            (texFetchX + (16 * blockHit)) / float(TEXTURE_RES * 16.0))));
+                                            vec2((texFetchX + (blockHit * 16) + 0.5) / float(TEXTURE_RES * 16.0),
+                                            (texFetchY + 0.5) / float(TEXTURE_RES * 3.0))));
+            
 
-            return textureColor;
+            if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
+                return textureColor;
+            }
         }
 
         // Determine the closest voxel boundary

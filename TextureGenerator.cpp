@@ -13,7 +13,7 @@ GLuint generateTextures()
 
     // procedurally generates the 16x3 textureAtlas
     // gsd = grayscale detail
-    for (int blockType = 1; blockType < 16; blockType++) {
+    for (int blockID = 1; blockID < 16; blockID++) {
         int gsd_tempA = 0xFF - rand.nextInt(0x60);
 
         for (int y = 0; y < TEXTURE_RES * 3; y++) {
@@ -24,11 +24,11 @@ GLuint generateTextures()
                 int tint;
 
 #ifndef CLASSIC
-                if (blockType != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
+                if (blockID != BLOCK_STONE || rand.nextInt(3) == 0) // if the block type is stone, update the noise value less often to get a stretched out look
                     gsd_tempA = 0xFF - rand.nextInt(0x60);
 
                 tint = 0x966C4A; // brown (dirt)
-                switch (blockType)
+                switch (blockID)
                 {
                 case BLOCK_STONE:
                 {
@@ -92,7 +92,7 @@ GLuint generateTextures()
                 if (y >= TEXTURE_RES * 2) // bottom side of the block
                     gsd_constexpr /= 2; // make it darker, baked "shading"
 
-                if (blockType == BLOCK_LEAVES) {
+                if (blockID == BLOCK_LEAVES) {
                     tint = 0x50D937; // green
                     if (rand.nextInt(2) == 0) {
                         tint = 0;
@@ -210,7 +210,7 @@ GLuint generateTextures()
                     (tint & 0xFF) * gsd_constexpr / 0xFF << 0;
 
                 // write pixel to the texture atlas
-                textureAtlas[x + y * TEXTURE_RES + blockType * (TEXTURE_RES * TEXTURE_RES) * 3] = col;
+                textureAtlas[x + (TEXTURE_RES * blockID) + y * (TEXTURE_RES * 16)] = col;
             }
         }
     }
@@ -226,8 +226,8 @@ GLuint generateTextures()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 3, TEXTURE_RES * 16);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 3, TEXTURE_RES * 16, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, TEXTURE_RES * 16, TEXTURE_RES * 3);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, TEXTURE_RES * 16, TEXTURE_RES * 3, GL_BGRA, GL_UNSIGNED_BYTE, textureAtlas);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
 
