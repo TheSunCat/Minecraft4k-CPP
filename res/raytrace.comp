@@ -9,6 +9,7 @@ layout(r8ui, binding = 1) uniform uimage3D blockData;
 //! #define RENDER_DIST 100.0
 
 #define BLOCK_AIR 0
+#define BLOCK_MIRROR 9
 
 uniform sampler2D textureAtlas;
 
@@ -50,38 +51,40 @@ bool inWorld(ivec3 pos)
 #define AXIS_Y 1
 #define AXIS_Z 2
 
+#define updateVelocityFields()\
+    iStart = ivec3(start);\
+    i = iStart.x - WORLD_SIZE / 2;\
+    j = iStart.y - WORLD_HEIGHT / 2;\
+    k = iStart.z - WORLD_SIZE / 2;\
+    ijkStep = ivec3(sign(velocity));\
+    vInverted = abs(1 / velocity);\
+    dist = (iStart - start) * ijkStep;\
+    dist += max(ijkStep, vec3(0));\
+    dist *= vInverted\
+
+
 // ~~stolen~~ took "inspiration" from https://github.com/Vercidium/voxel-ray-marching/blob/master/source/Map.cs
 
 // Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
 // Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
 vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int axis)
 {
-    ivec3 iStart = ivec3(start);
-
+    ivec3 iStart; // Integer version of start vec
 
     // Determine the chunk-relative position of the ray using a bit-mask
-    int i = iStart.x - WORLD_SIZE / 2;
-    int j = iStart.y - WORLD_HEIGHT / 2;
-    int k = iStart.z - WORLD_SIZE / 2;
-
+    int i, j, k;
 
     // The amount to increase i, j and k in each axis (either 1 or -1)
-    ivec3 ijkStep = ivec3(sign(velocity));
+    ivec3 ijkStep;
 
     // This variable is used to track the current progress throughout the ray march
     float rayTravelDist = 0.0;
-    
-    vec3 vInverted = abs(1 / velocity);
+    vec3 vInverted;
 
+    // The distance to the closest voxel boundary in units of rayTravelDist
+    vec3 dist;
 
-    // The distance to the closest voxel boundary in map units
-    vec3 dist = (iStart - start) * ijkStep; // (start - iStart) == -(iStart - start)
-    dist += max(ijkStep, vec3(0)); // idk if there's a better way to convert -1 , 1 to 0 , 1
-
-    // Determine the distance to the closest voxel boundary in units of t
-    //  - These values indicate how far we have to travel along the ray to reach the next voxel
-    dist *= vInverted; // TODO If any component of the direction is perpendicular to an axis, the distance is float.PositiveInfinity
-
+    updateVelocityFields();
 
 
     while (rayTravelDist <= maximum)
@@ -91,34 +94,44 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
         if (blockHit != BLOCK_AIR)
         {
-            hit = true;
+            vec3 hitPos = start + velocity * rayTravelDist;
 
-            vec3 hitPos = start + velocity * rayTravelDist; // TODO figure this out
-
-            // side of block
-            int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
-            int texFetchY = int(mod(hitPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
-
-
-            if (axis == AXIS_Y) // we hit the top/bottom of block
+            if(blockHit == BLOCK_MIRROR)
             {
-                texFetchX = int(mod(hitPos.x * TEXTURE_RES, TEXTURE_RES));
-                texFetchY = int(mod(hitPos.z * TEXTURE_RES, TEXTURE_RES));
+                velocity[axis] = -velocity[axis]; // reflect!
+                start = hitPos;
 
-                if (velocity.y < 0.0F) // looking at the underside of a block
-                    texFetchY += TEXTURE_RES * 2;
-            }
+                updateVelocityFields();
+            } else {
+            
+                hit = true;
+                
 
-            vec3 textureColor = vec3(texture(textureAtlas,
-                                            vec2((texFetchX + (blockHit * 16) + 0.5) / float(TEXTURE_RES * 16.0),
-                                            (texFetchY + 0.5) / float(TEXTURE_RES * 3.0))));
+                // side of block
+                int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
+                int texFetchY = int(mod(hitPos.y * TEXTURE_RES, TEXTURE_RES) + TEXTURE_RES);
+
+
+                if (axis == AXIS_Y) // we hit the top/bottom of block
+                {
+                    texFetchX = int(mod(hitPos.x * TEXTURE_RES, TEXTURE_RES));
+                    texFetchY = int(mod(hitPos.z * TEXTURE_RES, TEXTURE_RES));
+
+                    if (velocity.y < 0.0F) // looking at the underside of a block
+                        texFetchY += TEXTURE_RES * 2;
+                }
+
+                vec3 textureColor = vec3(texture(textureAtlas,
+                                                vec2((texFetchX + (blockHit * 16) + 0.5) / float(TEXTURE_RES * 16.0),
+                                                (texFetchY + 0.5) / float(TEXTURE_RES * 3.0))));
             
 
-            if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
+                if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                 
-                float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
+                    float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
 
-                return textureColor * mix(ambColor, sunColor, lightIntensity);
+                    return textureColor * mix(ambColor, sunColor, lightIntensity);
+                }
             }
         }
 

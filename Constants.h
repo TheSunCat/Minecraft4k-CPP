@@ -27,7 +27,7 @@ constexpr uint8_t BLOCK_STONE = 4;
 constexpr uint8_t BLOCK_BRICKS = 5;
 constexpr uint8_t BLOCK_WOOD = 7;
 constexpr uint8_t BLOCK_LEAVES = 8;
-constexpr uint8_t BLOCK_NEW = 9;
+constexpr uint8_t BLOCK_MIRROR = 9;
 
 // COLORS
 

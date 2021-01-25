@@ -246,7 +246,7 @@ void init()
 
                 for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
                 {
-                    setBlock(treeX, y, treeZ, BLOCK_WOOD);
+                    setBlock(treeX, y, treeZ, BLOCK_MIRROR); // TODO set this back to wood when we don't want tree mirrors
                 }
 
                 // foliage
