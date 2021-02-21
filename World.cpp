@@ -72,7 +72,7 @@ void World::generateWorld(long long seed)
 constexpr float halfWorldSize = WORLD_SIZE / 2.0f;
 constexpr int stoneDepth = 5;
 
-void World::generateWorld(long long seed)
+void World::generateWorld(uint64_t seed)
 {
     Random rand = Random(seed);
 
@@ -102,27 +102,28 @@ void World::generateWorld(long long seed)
         for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
             if (rand.nextInt(4) == 0) // spawn tree
             {
-                const int treeX = x + (rand.nextInt(4) - 2);
-                const int treeZ = z + (rand.nextInt(4) - 2);
+                const glm::ivec2 treePos = rand.nextIVec2(2);
+                const int treeX = treePos.x + x;
+                const int treeZ = treePos.y + z;
 
                 const int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
 
-                const int treeHeight = 4 + rand.nextInt(2); // min 4 max 5
+                const int trunkHeight = 4 + rand.nextInt(2); // min 4 max 5
 
-                for (int y = terrainHeight; y >= terrainHeight - treeHeight; y--)
+                for (int y = terrainHeight; y >= terrainHeight - trunkHeight; y--)
                 {
                     setBlock(treeX, y, treeZ, BLOCK_WOOD);
                 }
 
                 // foliage
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treeX - 2, terrainHeight - treeHeight + 1, treeZ - 2),
-                    glm::vec3(treeX + 3, terrainHeight - treeHeight + 3, treeZ + 3), false);
+                    glm::vec3(treeX - 2, terrainHeight - trunkHeight + 1, treeZ - 2),
+                    glm::vec3(treeX + 3, terrainHeight - trunkHeight + 3, treeZ + 3), false);
 
                 // crown
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treeX - 1, terrainHeight - treeHeight - 1, treeZ - 1),
-                    glm::vec3(treeX + 2, terrainHeight - treeHeight + 1, treeZ + 2), false);
+                    glm::vec3(treeX - 1, terrainHeight - trunkHeight - 1, treeZ - 1),
+                    glm::vec3(treeX + 2, terrainHeight - trunkHeight + 1, treeZ + 2), false);
 
 
                 int foliageXList[] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
@@ -138,20 +139,12 @@ void World::generateWorld(long long seed)
 
                     const int foliageCut = rand.nextInt(10);
 
-                    switch (foliageCut) {
-                    case 0: // cut out top
-                        setBlock(foliageX, terrainHeight - treeHeight + 1, foliageZ, BLOCK_AIR);
-                        break;
-                    case 1: // cut out bottom
-                        setBlock(foliageX, terrainHeight - treeHeight + 2, foliageZ, BLOCK_AIR);
-                        break;
-                    case 2: // cut out both
-                        setBlock(foliageX, terrainHeight - treeHeight + 1, foliageZ, BLOCK_AIR);
-                        setBlock(foliageX, terrainHeight - treeHeight + 2, foliageZ, BLOCK_AIR);
-                        break;
-                    default: // do nothing
-                        break;
-                    }
+
+                    if ((foliageCut == 0) || (foliageCut == 2)) // cut out top
+                       setBlock(foliageX, terrainHeight - trunkHeight + 1, foliageZ, BLOCK_AIR);
+
+                    if ((foliageCut == 1) || (foliageCut == 2)) // cut out bottom
+                        setBlock(foliageX, terrainHeight - trunkHeight + 2, foliageZ, BLOCK_AIR);
 
 
                     const int crownX = crownXList[i];
@@ -161,12 +154,9 @@ void World::generateWorld(long long seed)
 
                     switch (crownCut) {
                     case 0: // cut out both
-                        setBlock(crownX, terrainHeight - treeHeight - 1, crownZ, BLOCK_AIR);
-                        setBlock(crownX, terrainHeight - treeHeight, crownZ, BLOCK_AIR);
-                        break;
-                    default: // do nothing
-                        setBlock(crownX, terrainHeight - treeHeight - 1, crownZ, BLOCK_AIR);
-                        break;
+                        setBlock(crownX, terrainHeight - trunkHeight, crownZ, BLOCK_AIR);
+                    default: // cut out one
+                        setBlock(crownX, terrainHeight - trunkHeight - 1, crownZ, BLOCK_AIR);
                     }
                 }
             }

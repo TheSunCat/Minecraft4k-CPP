@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <glad/glad.h>
-#include <glm/vec3.hpp>
+#include <glm/glm.hpp>
 
 constexpr float PI = 3.14159265359f;
 
@@ -33,9 +33,15 @@ public:
 
     float nextFloat();
 
+    glm::vec2 nextVec2(float magnitude);
+
+
     int nextInt();
 
+    glm::ivec2 nextIVec2(int magnitude);
+
     int nextInt(int bound);
+
 
     void setSeed(uint64_t newSeed);
 };
@@ -43,6 +49,7 @@ public:
 // It's just Perlin from Processing
 namespace Perlin
 {
+    float noise(glm::vec2 pos);
     float noise(float x, float y);
 }
 

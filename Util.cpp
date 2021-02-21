@@ -47,9 +47,25 @@ float Random::nextFloat()
     return float(next(24)) / float(1 << 24);
 }
 
+glm::vec2 Random::nextVec2(float magnitude)
+{
+    float x = nextFloat() * magnitude * 2.f;
+    float y = nextFloat() * magnitude * 2.f;
+
+    return glm::vec2(x - magnitude, y - magnitude);
+}
+
 int Random::nextInt()
 {
     return next(32);
+}
+
+glm::ivec2 Random::nextIVec2(int magnitude)
+{
+    int x = nextInt(magnitude * 2);
+    int y = nextInt(magnitude * 2);
+
+    return glm::ivec2(x - magnitude, y - magnitude);
 }
 
 int Random::nextInt(const int bound)
@@ -151,6 +167,11 @@ float Perlin::noise(float x, float y) { // stolen from Processing
     }
 
     return r;
+}
+
+float Perlin::noise(glm::vec2 pos)
+{
+    return noise(pos.x, pos.y);
 }
 
 float clamp(float val, const float min, const float max)
