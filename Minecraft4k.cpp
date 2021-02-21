@@ -238,9 +238,9 @@ void collidePlayer()
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
-            const glm::ivec3 colliderBlockPos = glm::ivec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ) - WORLD_SIZE,
-                                                           (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f) - WORLD_HEIGHT,
-                                                           (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ) - WORLD_SIZE);
+            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ) - WORLD_SIZE,
+                                                         (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f) - WORLD_HEIGHT,
+                                                         (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ) - WORLD_SIZE);
 
             if (colliderBlockPos.y < 0) // ignore collision above the world height limit
                 continue;
