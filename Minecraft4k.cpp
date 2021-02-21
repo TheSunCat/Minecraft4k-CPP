@@ -49,8 +49,8 @@ GLuint screenTexture;
 
 float deltaTime = 16.666f; // 16.66 = 60fps
 
-glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
-                                WORLD_HEIGHT + 3, 
+glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f,
+                                WORLD_HEIGHT + 1, 
                                 WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
 glm::vec3 playerVelocity;
 

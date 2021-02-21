@@ -27,7 +27,7 @@ class Random
     int next(int bits);
 
 public:
-    Random(long seed);
+    Random(uint64_t seed);
 
     Random();
 

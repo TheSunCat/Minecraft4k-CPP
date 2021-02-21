@@ -13,7 +13,7 @@ long long currentTime()
 
 uint64_t Random::seedUniquifier = 8682522807148012;
 Random::Random() : seed(uniqueSeed() ^ uint64_t(currentTime())) {}
-Random::Random(const long seed) : seed(initialScramble(seed)) {}
+Random::Random(const uint64_t seed) : seed(initialScramble(seed)) {}
 
 uint64_t Random::initialScramble(const uint64_t seed)
 {
