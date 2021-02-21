@@ -110,7 +110,7 @@ GLuint generateTextures(long long seed)
 
     GLuint textureAtlasTex = 0;
 
-    std::cout << "Uploading texture atlas... ";
+    std::cout << "Uploading texture atlas to GPU... ";
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
 
@@ -125,6 +125,7 @@ GLuint generateTextures(long long seed)
     glBindTexture(GL_TEXTURE_2D, 0);
 
     delete[] textureAtlas;
+
     std::cout << "Done!\n";
 
     return textureAtlasTex;

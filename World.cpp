@@ -21,7 +21,7 @@ uint8_t World::getBlock(const glm::vec3& pos)
 bool World::isWithinWorld(const glm::vec3& pos)
 {
     return pos.x >= 0.0f && pos.y >= 0.0f && pos.z >= 0.0f &&
-        pos.x < WORLD_SIZE&& pos.y < WORLD_HEIGHT&& pos.z < WORLD_SIZE;
+        pos.x < WORLD_SIZE && pos.y < WORLD_HEIGHT && pos.z < WORLD_SIZE;
 }
 
 void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,

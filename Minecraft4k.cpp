@@ -50,7 +50,7 @@ GLuint screenTexture;
 float deltaTime = 16.666f; // 16.66 = 60fps
 
 glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f, 
-                                WORLD_HEIGHT + 1, 
+                                WORLD_HEIGHT + 3, 
                                 WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
 glm::vec3 playerVelocity;
 
@@ -142,16 +142,13 @@ void init()
     // generate world
 
     std::cout << "Generating world... ";
-
     World::generateWorld(18295169L);
-
     std::cout << "Done!\n";
 
     std::cout << "Generating textures... ";
     textureAtlasTex = generateTextures(151910774187927L);
-    std::cout << "Done!\n";
 
-    std::cout << "Uploading world data... ";
+    std::cout << "Uploading world to GPU... ";
     glGenTextures(1, &worldTexture);
     glBindTexture(GL_TEXTURE_3D, worldTexture);
 
@@ -232,46 +229,50 @@ void raycast(const glm::vec2 pixelCoords, glm::vec3& hoveredBlockPos_out, glm::v
 void collidePlayer()
 {
     // check for movement on each axis individually?
-    for (int axisIndex = 0; axisIndex < 3; axisIndex++) {
-        if (false) {
-        OUTER:axisIndex++;
-            if (axisIndex >= 3)
-                return;
-        }
-        const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * ((axisIndex + 1) % 3 / 2),
-                                                 playerPos.y + playerVelocity.y * ((axisIndex + 0) % 3 / 2),
-                                                 playerPos.z + playerVelocity.z * ((axisIndex + 2) % 3 / 2));
+    for (int axis = 0; axis < 3; axis++) {
+        bool valid = true;
+
+        const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * (axis == 0),
+                                                 playerPos.y + playerVelocity.y * (axis == 1),
+                                                 playerPos.z + playerVelocity.z * (axis == 2));
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
-            const glm::ivec3 colliderBlockPos = glm::ivec3((newPlayerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE,
-                                                           (newPlayerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT,
-                                                           (newPlayerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE);
+            const glm::ivec3 colliderBlockPos = glm::ivec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ) - WORLD_SIZE,
+                                                           (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f) - WORLD_HEIGHT,
+                                                           (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ) - WORLD_SIZE);
 
-            if (colliderBlockPos.y < 0)
+            if (colliderBlockPos.y < 0) // ignore collision above the world height limit
                 continue;
 
-            // check collision with world bounds and world blocks
+            // check collision with world bounds and blocks
             if (!World::isWithinWorld(colliderBlockPos)
-                || World::getBlock(colliderBlockPos.x, colliderBlockPos.y, colliderBlockPos.z) != BLOCK_AIR) {
+                || World::getBlock(colliderBlockPos) != BLOCK_AIR) {
 
-                if (axisIndex != 2) // not checking for vertical movement
-                    goto OUTER; // movement is invalid
+                if (axis == 1) // AXIS_Y
+                {
+                    // if we're falling, colliding, and we press space
+                    if (controller.jump && playerVelocity.y > 0.0f) {
 
-                // if we're falling, colliding, and we press space
-                if (controller.jump && playerVelocity.y > 0.0F) {
-                    playerVelocity.y = -0.1F; // jump
-                    return;
+                        playerVelocity.y = -0.1F; // jump
+                    }
+                    else { // we're on the ground, not jumping
+
+                        playerVelocity.y = 0.0f; // prevent accelerating downwards infinitely
+                    }
                 }
 
-                // stop vertical movement
-                playerVelocity.y = 0.0F;
-                return;
+                valid = false;
+                break;
             }
         }
 
-        playerPos = newPlayerPos;
+        if (valid) {
+            playerPos = newPlayerPos;
+        }
     }
+
+    std::cout << playerPos << '\n';
 }
 
 void run(GLFWwindow* window) {
