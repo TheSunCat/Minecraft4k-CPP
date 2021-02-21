@@ -24,10 +24,10 @@ class Random
 
     static uint64_t uniqueSeed();
 
-    int next(const int bits);
+    int next(int bits);
 
 public:
-    Random(const long seed);
+    Random(long seed);
 
     Random();
 
@@ -35,9 +35,9 @@ public:
 
     int nextInt();
 
-    int nextInt(const int bound);
+    int nextInt(int bound);
 
-    void setSeed(const uint64_t newSeed);
+    void setSeed(uint64_t newSeed);
 };
 
 // It's just Perlin from Processing
@@ -46,7 +46,7 @@ namespace Perlin
     float noise(float x, float y);
 }
 
-float clamp(float val, const float min, const float max);
+float clamp(float val, float min, float max);
 
 bool glError();
 

@@ -164,6 +164,7 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="TextureGenerator.cpp" />
     <ClCompile Include="Util.cpp" />
+    <ClCompile Include="World.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -176,6 +177,7 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="TextureGenerator.h" />
     <ClInclude Include="Util.h" />
+    <ClInclude Include="World.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
