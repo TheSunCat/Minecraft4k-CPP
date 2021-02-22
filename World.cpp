@@ -102,62 +102,58 @@ void World::generateWorld(uint64_t seed)
         for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
             if (rand.nextInt(4) == 0) // spawn tree
             {
-                const glm::ivec2 treePos = rand.nextIVec2(2);
-                const int treeX = treePos.x + x;
-                const int treeZ = treePos.y + z;
+                const glm::vec2 treePos = rand.nextIVec2(2) + glm::ivec2(x, z);
 
-                const int terrainHeight = round(maxTerrainHeight + Perlin::noise(treeX / halfWorldSize, treeZ / halfWorldSize) * 10.0f) - 1;
-
+                const int terrainHeight = int(round(maxTerrainHeight + Perlin::noise(treePos / halfWorldSize) * 10.0f)) - 1;
                 const int trunkHeight = 4 + rand.nextInt(2); // min 4 max 5
 
+                // fill trunk
                 for (int y = terrainHeight; y >= terrainHeight - trunkHeight; y--)
                 {
-                    setBlock(treeX, y, treeZ, BLOCK_WOOD);
+                    setBlock(treePos.s, y, treePos.t, BLOCK_WOOD);
                 }
 
-                // foliage
+                // fill base foliage
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treeX - 2, terrainHeight - trunkHeight + 1, treeZ - 2),
-                    glm::vec3(treeX + 3, terrainHeight - trunkHeight + 3, treeZ + 3), false);
+                    glm::vec3(treePos.s - 2, terrainHeight - trunkHeight + 1, treePos.t - 2),
+                    glm::vec3(treePos.s + 3, terrainHeight - trunkHeight + 3, treePos.t + 3), false);
 
-                // crown
+                // fill crown
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treeX - 1, terrainHeight - trunkHeight - 1, treeZ - 1),
-                    glm::vec3(treeX + 2, terrainHeight - trunkHeight + 1, treeZ + 2), false);
+                    glm::vec3(treePos.s - 1, terrainHeight - trunkHeight - 1, treePos.t - 1),
+                    glm::vec3(treePos.s + 2, terrainHeight - trunkHeight + 1, treePos.t + 2), false);
 
-
-                int foliageXList[] = { treeX - 2, treeX - 2, treeX + 2, treeX + 2 };
-                int foliageZList[] = { treeZ - 2, treeZ + 2, treeZ + 2, treeZ - 2 };
-
-                int crownXList[] = { treeX - 1, treeX - 1, treeX + 1, treeX + 1 };
-                int crownZList[] = { treeZ - 1, treeZ + 1, treeZ + 1, treeZ - 1 };
-
+                // cut out corners randomly
                 for (int i = 0; i < 4; i++)
                 {
-                    const int foliageX = foliageXList[i];
-                    const int foliageZ = foliageZList[i];
-
-                    const int foliageCut = rand.nextInt(10);
-
-
-                    if ((foliageCut == 0) || (foliageCut == 2)) // cut out top
-                       setBlock(foliageX, terrainHeight - trunkHeight + 1, foliageZ, BLOCK_AIR);
-
-                    if ((foliageCut == 1) || (foliageCut == 2)) // cut out bottom
-                        setBlock(foliageX, terrainHeight - trunkHeight + 2, foliageZ, BLOCK_AIR);
+                    // binary counting, so we cover all values
+                    int bit0 = (i >> 0 & 0b01) * 2 - 1;
+                    int bit1 = (i >> 1 & 0b01) * 2 - 1;
 
 
-                    const int crownX = crownXList[i];
-                    const int crownZ = crownZList[i];
+                    // base foliage
+                    const glm::ivec2 foliagePos = glm::ivec2(treePos.s + (2 * bit0), treePos.t + (2 * bit1));
 
-                    const int crownCut = rand.nextInt(10);
 
-                    switch (crownCut) {
-                    case 0: // cut out both
-                        setBlock(crownX, terrainHeight - trunkHeight, crownZ, BLOCK_AIR);
-                    default: // cut out one
-                        setBlock(crownX, terrainHeight - trunkHeight - 1, crownZ, BLOCK_AIR);
-                    }
+                    int cornerStyle = rand.nextInt(7);
+
+                    if ((cornerStyle == 0) || (cornerStyle == 2)) // cut out top
+                       setBlock(foliagePos.s, terrainHeight - trunkHeight + 1, foliagePos.t, BLOCK_AIR);
+
+                    if ((cornerStyle == 1) || (cornerStyle == 2)) // cut out bottom
+                        setBlock(foliagePos.s, terrainHeight - trunkHeight + 2, foliagePos.t, BLOCK_AIR);
+
+
+                    // crown
+                    const glm::ivec2 crownPos = glm::ivec2(treePos.s + bit0, treePos.t + bit1);
+
+                    cornerStyle = rand.nextInt(5);
+
+                    if (cornerStyle == 0) // cut out bottom 1/10 times
+                        setBlock(crownPos.s, terrainHeight - trunkHeight, crownPos.t, BLOCK_AIR);
+
+                    // always cut crown top
+                    setBlock(crownPos.s, terrainHeight - trunkHeight - 1, crownPos.t, BLOCK_AIR);
                 }
             }
         }
