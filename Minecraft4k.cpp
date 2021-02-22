@@ -238,9 +238,9 @@ void collidePlayer()
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
-            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ),
+            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       % 2) * 0.6f - 0.3f ),
                                                          (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f),
-                                                         (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ));
+                                                         (newPlayerPos.z + (colliderIndex / 2   % 2) * 0.6f - 0.3f ));
 
             if (colliderBlockPos.y < 0) // ignore collision above the world height limit
                 continue;
@@ -515,7 +515,7 @@ void initBuffers(GLuint* vao, GLuint* buffer) {
 void initTexture(GLuint* texture, const int width, const int height) {
     glGenTextures(1, texture);
     glBindTexture(GL_TEXTURE_2D, *texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -539,7 +539,11 @@ int main(const int argc, const char** argv)
     std::cout << "Creating window... ";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+#ifdef _DEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+#endif
+
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
@@ -563,7 +567,7 @@ int main(const int argc, const char** argv)
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // turn on VSync so we don't run at about a kjghpillion fps
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     std::cout << "Loading OpenGL functions... ";
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))

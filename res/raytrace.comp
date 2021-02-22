@@ -67,7 +67,7 @@ bool inWorld(ivec3 pos)
 
 // Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
 // Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
-vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int axis)
+vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec3 hitPos)
 {
     ivec3 iStart; // Integer version of start vec
 
@@ -86,6 +86,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
     updateVelocityFields();
 
+    int axis = AXIS_X;
 
     while (rayTravelDist <= maximum)
     {
@@ -97,7 +98,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
         if (blockHit != BLOCK_AIR)
         {
-            vec3 hitPos = start + velocity * rayTravelDist;
+            hitPos = start + velocity * rayTravelDist;
             
             if(blockHit == BLOCK_MIRROR)
             {
@@ -106,9 +107,6 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
 
                 updateVelocityFields();
             } else {
-            
-                hit = true;
-                
 
                 // side of block
                 int texFetchX = int(mod((hitPos.x + hitPos.z) * TEXTURE_RES, TEXTURE_RES));
@@ -132,6 +130,9 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
                 if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                 
                     float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
+
+                    hit = true;
+                    hitPos = start + velocity * (rayTravelDist - 0.01f);
 
                     return textureColor * mix(ambColor, sunColor, lightIntensity);
                 }
@@ -186,7 +187,6 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     }
 
     hit = false;
-
     return mix(skyColor, sunColor, 0.5 * pow(clamp(dot(velocity, lightDirection), 0, 1) + 0.2, 5));
 }
 
@@ -201,11 +201,19 @@ vec3 getPixel(in vec2 pixel_coords)
                                  frustumRay.y * camera.cosPitch - camera.sinPitch,
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
 
+
+    vec3 hitPos;
     bool hit = false;
-    int axis = AXIS_X;
+    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, hit, hitPos);
 
-    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, hit, axis);
+    if(hit)
+    {
+        vec3 ignore = rayMarch(hitPos, lightDirection, min(float(WORLD_HEIGHT), RENDER_DIST), hit, hitPos);
 
+        if(hit) { // can't see the sun
+            color = color * vec3(0.3f);
+        }
+    }
 
     return color;
 }
