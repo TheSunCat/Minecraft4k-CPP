@@ -47,7 +47,7 @@ void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,
 constexpr float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
 
 #ifdef CLASSIC // classic worldgen
-void World::generateWorld(long long seed)
+void World::generateWorld(uint64_t seed)
 {
     Random rand = Random(seed);
     for (int x = WORLD_SIZE; x >= 0; x--) {

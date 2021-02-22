@@ -32,6 +32,7 @@ uniform vec3 lightDirection;
 uniform vec3 ambColor;
 uniform vec3 skyColor;
 uniform vec3 sunColor;
+uniform vec3 fogColor;
 
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
@@ -123,18 +124,25 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
                 }
 
                 vec3 textureColor = vec3(texture(textureAtlas,
-                                                vec2((texFetchX + (blockHit * 16) + 0.5) / float(TEXTURE_RES * 16.0),
+                                                vec2((texFetchX + (blockHit * TEXTURE_RES) + 0.5) / float(TEXTURE_RES * 16.0),
                                                 (texFetchY + 0.5) / float(TEXTURE_RES * 3.0))));
             
 
                 if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                 
                     float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
+                    float fogIntensity = (1 - (rayTravelDist / RENDER_DIST)) * (0xFF - (axis + 2) % 3 * 50) / 0xFF;
 
                     hit = true;
                     hitPos = start + velocity * (rayTravelDist - 0.01f);
 
-                    return textureColor * mix(ambColor, sunColor, lightIntensity);
+                    vec3 ret = textureColor * fogIntensity;
+
+#ifdef CLASSIC
+                    return ret;
+#else
+                    return ret * mix(ambColor, sunColor, lightIntensity);
+#endif
                 }
             }
         }
@@ -187,7 +195,12 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
     }
 
     hit = false;
+
+#ifdef CLASSIC
+    return vec3(0);
+#else
     return mix(skyColor, sunColor, 0.5 * pow(clamp(dot(velocity, lightDirection), 0, 1) + 0.2, 5));
+#endif
 }
 
 vec3 getPixel(in vec2 pixel_coords)
@@ -206,6 +219,7 @@ vec3 getPixel(in vec2 pixel_coords)
     bool hit = false;
     vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, hit, hitPos);
 
+#ifndef CLASSIC
     if(hit)
     {
         vec3 ignore = rayMarch(hitPos, lightDirection, min(float(WORLD_HEIGHT), RENDER_DIST), hit, hitPos);
@@ -214,6 +228,7 @@ vec3 getPixel(in vec2 pixel_coords)
             color = color * vec3(0.3f);
         }
     }
+#endif
 
     return color;
 }

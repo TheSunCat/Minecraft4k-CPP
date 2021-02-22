@@ -64,7 +64,7 @@ glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 float cameraYaw = 0.0f;
 float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
-glm::vec2 frustumDiv = (SCR_RES * FOV) / defaultRes; // TODO why divide by defaultRes? Removing doesn't seem to affect it.
+glm::vec2 frustumDiv = (SCR_RES * FOV);// / defaultRes; // TODO why divide by defaultRes? Removing doesn't seem to affect it.
 
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
@@ -368,11 +368,16 @@ void run(GLFWwindow* window) {
         computeShader.setVec2("camera.frustumDiv", frustumDiv);
         computeShader.setVec3("camera.pos", playerPos);
 
+#ifdef CLASSIC
 
+#else
         computeShader.setVec3("lightDirection", lightDirection);
         computeShader.setVec3("skyColor", skyColor);
         computeShader.setVec3("ambColor", ambColor);
         computeShader.setVec3("sunColor", sunColor);
+#endif
+
+        computeShader.setVec3("fogColor", glm::vec3(1.0));
 
 
         glInvalidateTexImage(screenTexture, 0);
@@ -523,6 +528,11 @@ void initTexture(GLuint* texture, const int width, const int height) {
     glBindImageTexture(0, *texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 }
 
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+{
+    glViewport(0, 0, width, height);
+}
+
 int main(const int argc, const char** argv)
 {
     std::cout << "Initializing GLFW... ";
@@ -545,7 +555,7 @@ int main(const int argc, const char** argv)
 #endif
 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // add on Mac bc Apple is big dumb :(
@@ -565,9 +575,10 @@ int main(const int argc, const char** argv)
     std::cout << "Done!\n";
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // turn on VSync so we don't run at about a kjghpillion fps
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     std::cout << "Loading OpenGL functions... ";
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
@@ -600,6 +611,10 @@ int main(const int argc, const char** argv)
             << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
             << "#define TEXTURE_RES " << TEXTURE_RES << "\n"
             << "#define RENDER_DIST " << RENDER_DIST << "\n";
+#ifdef CLASSIC
+    defines << "#define CLASSIC\n";
+#endif
+
     const std::string definesStr = defines.str();
 
     screenShader = Shader("screen", "screen");
