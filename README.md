@@ -6,7 +6,7 @@ If you encounter an issue, please let me know by creating an Issue including you
 <br>
 <br>
 # Minecraft4k-Reversed README:
-Minecraft4k-Reversed was created by me and JuPaHe64.<br>
+Minecraft4k-Reversed is the Java Edition of Minecraft4k, and was created by me and JuPaHe64.<br>
 <br>
 Controls:<br>
 Move: WASD<br>
