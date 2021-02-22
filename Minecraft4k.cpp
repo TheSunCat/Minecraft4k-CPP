@@ -48,9 +48,10 @@ GLuint screenTexture;
 
 float deltaTime = 16.666f; // 16.66 = 60fps
 
-glm::vec3 playerPos = glm::vec3(WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f,
-                                WORLD_HEIGHT + 1, 
-                                WORLD_SIZE + WORLD_SIZE / 2.0f + 0.5f);
+// spawn player at world center
+glm::vec3 playerPos = glm::vec3(WORLD_SIZE / 2.0f + 0.5f,
+                                 1, 
+                                WORLD_SIZE / 2.0f + 0.5f);
 glm::vec3 playerVelocity;
 
 glm::vec3 hoveredBlockPos;
@@ -237,9 +238,9 @@ void collidePlayer()
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
-            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ) - WORLD_SIZE,
-                                                         (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f) - WORLD_HEIGHT,
-                                                         (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ) - WORLD_SIZE);
+            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       & 1) * 0.6f - 0.3f ),
+                                                         (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f),
+                                                         (newPlayerPos.z + (colliderIndex / 2   & 1) * 0.6f - 0.3f ));
 
             if (colliderBlockPos.y < 0) // ignore collision above the world height limit
                 continue;
@@ -329,9 +330,9 @@ void run(GLFWwindow* window) {
             collidePlayer();
 
             for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-                int magicX = int(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F) - WORLD_SIZE;
-                int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F) - WORLD_HEIGHT;
-                int magicZ = int(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F) - WORLD_SIZE;
+                int magicX = int(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F);
+                int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F);
+                int magicZ = int(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F);
 
                 // set block to air if inside player
                 if (World::isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
@@ -591,8 +592,8 @@ int main(const int argc, const char** argv)
 
     std::cout << "Building shaders... ";
     std::stringstream defines;
-    defines << "#define WORLD_SIZE " << WORLD_SIZE * 2 << "\n"
-            << "#define WORLD_HEIGHT " << WORLD_HEIGHT * 2 << "\n"
+    defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
+            << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
             << "#define TEXTURE_RES " << TEXTURE_RES << "\n"
             << "#define RENDER_DIST " << RENDER_DIST << "\n";
     const std::string definesStr = defines.str();

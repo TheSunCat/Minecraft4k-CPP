@@ -53,9 +53,9 @@ bool inWorld(ivec3 pos)
 
 #define updateVelocityFields()\
     iStart = ivec3(start);\
-    i = iStart.x - WORLD_SIZE / 2;\
-    j = iStart.y - WORLD_HEIGHT / 2;\
-    k = iStart.z - WORLD_SIZE / 2;\
+    i = iStart.x;\
+    j = iStart.y;\
+    k = iStart.z;\
     ijkStep = ivec3(sign(velocity));\
     vInverted = abs(1 / velocity);\
     dist = (iStart - start) * ijkStep;\
@@ -90,12 +90,15 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
     while (rayTravelDist <= maximum)
     {
         // Exit check
+        if(!inWorld(ivec3(i, j, k)))
+            break;
+
         int blockHit = getBlock(ivec3(i, j, k));
 
         if (blockHit != BLOCK_AIR)
         {
             vec3 hitPos = start + velocity * rayTravelDist;
-
+            
             if(blockHit == BLOCK_MIRROR)
             {
                 velocity[axis] = -velocity[axis]; // reflect!
@@ -180,9 +183,6 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out int
             dist.z += vInverted.z;
             axis = AXIS_Z;
         }
-
-        if(!inWorld(ivec3(i, j, k)))
-            break;
     }
 
     hit = false;
