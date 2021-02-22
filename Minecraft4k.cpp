@@ -33,8 +33,9 @@ bool needsResUpdate = true;
 
 int SCR_DETAIL = 2;
 
-glm::vec2 SCR_RES = glm::ivec2(107 * pow(2, SCR_DETAIL), 60 * pow(2, SCR_DETAIL));
-glm::vec2 defaultRes = glm::ivec2(214, 120);
+constexpr glm::vec2 defaultRes(214, 120);
+
+glm::vec2 SCR_RES = defaultRes * float(1 << SCR_DETAIL);
 
 Shader screenShader;
 Shader computeShader;
@@ -228,7 +229,7 @@ void collidePlayer()
 {
     // check for movement on each axis individually?
     for (int axis = 0; axis < 3; axis++) {
-        bool valid = true;
+        bool moveValid = true;
 
         const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * (axis == 0),
                                                  playerPos.y + playerVelocity.y * (axis == 1),
@@ -260,12 +261,12 @@ void collidePlayer()
                     }
                 }
 
-                valid = false;
+                moveValid = false;
                 break;
             }
         }
 
-        if (valid) {
+        if (moveValid) {
             playerPos = newPlayerPos;
         }
     }

@@ -17,7 +17,11 @@ constexpr float PLAYER_REACH = 5.0f;
 
 constexpr int TEXTURE_RES = 16;
 
+#ifdef CLASSIC
+constexpr int WORLD_SIZE = 512;
+#else
 constexpr int WORLD_SIZE = 64;
+#endif
 constexpr int WORLD_HEIGHT = 64;
 
 constexpr uint8_t BLOCK_AIR = 0;

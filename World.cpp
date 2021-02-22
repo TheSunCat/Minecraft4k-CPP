@@ -69,7 +69,6 @@ void World::generateWorld(long long seed)
     }
 }
 #else // new worldgen
-constexpr float halfWorldSize = WORLD_SIZE / 2.0f;
 constexpr int stoneDepth = 5;
 
 void World::generateWorld(uint64_t seed)
@@ -78,7 +77,7 @@ void World::generateWorld(uint64_t seed)
 
     for (int x = WORLD_SIZE; x >= 0; x--) {
         for (int z = 0; z < WORLD_SIZE; z++) {
-            const int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / halfWorldSize, z / halfWorldSize) * 10.0f);
+            const int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / 32.f, z / 32.f) * 10.0f);
 
             for (int y = 0; y < WORLD_HEIGHT; y++) {
                 uint8_t block;
@@ -104,7 +103,7 @@ void World::generateWorld(uint64_t seed)
             {
                 const glm::vec2 treePos = rand.nextIVec2(2) + glm::ivec2(x, z);
 
-                const int terrainHeight = int(round(maxTerrainHeight + Perlin::noise(treePos / halfWorldSize) * 10.0f)) - 1;
+                const int terrainHeight = int(round(maxTerrainHeight + Perlin::noise(treePos / 32.f) * 10.0f)) - 1;
                 const int trunkHeight = 4 + rand.nextInt(2); // min 4 max 5
 
                 // fill trunk
