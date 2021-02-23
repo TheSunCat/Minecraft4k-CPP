@@ -377,7 +377,7 @@ void run(GLFWwindow* window) {
         computeShader.setVec3("sunColor", sunColor);
 #endif
 
-        computeShader.setVec3("fogColor", glm::vec3(1.0));
+        computeShader.setVec3("fogColor", skyColor);
 
 
         glInvalidateTexImage(screenTexture, 0);

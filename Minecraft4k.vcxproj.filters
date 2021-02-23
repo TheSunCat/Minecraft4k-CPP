@@ -35,7 +35,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
     <None Include="res\screen.frag">
       <Filter>Resource Files</Filter>
     </None>

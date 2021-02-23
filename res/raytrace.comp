@@ -136,7 +136,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
                     hit = true;
                     hitPos = start + velocity * (rayTravelDist - 0.01f);
 
-                    vec3 ret = textureColor * fogIntensity;
+                    vec3 ret = mix(fogColor, textureColor, fogIntensity);
 
 #ifdef CLASSIC
                     return ret;

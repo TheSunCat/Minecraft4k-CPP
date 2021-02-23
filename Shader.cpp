@@ -117,7 +117,8 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
         computeCode = computeStream.str();
     }
     catch (std::ifstream::failure& e) {
-        std::cout << "Failed to load compute shader \"" << computeName << "\"!" << std::endl;
+        std::cout << "Failed to load compute shader \"" << computeName << "\"!"
+                  << "Error code: " << e.code() << std::endl;
         return;
     }
 
