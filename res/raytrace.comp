@@ -32,7 +32,12 @@ uniform vec3 lightDirection;
 uniform vec3 ambColor;
 uniform vec3 skyColor;
 uniform vec3 sunColor;
-uniform vec3 fogColor;
+
+const float euler = 2.7182818284f;
+float sigmoid(in float x)
+{
+    return 1/(1 + pow(euler, -x));
+}
 
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
@@ -68,7 +73,7 @@ bool inWorld(ivec3 pos)
 
 // Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
 // Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
-vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec3 hitPos)
+vec3 rayMarch(in vec3 start, in vec3 velocity, in float maximum, in vec3 fogColor, out bool hit, out vec3 hitPos, out float rayTravelDist)
 {
     ivec3 iStart; // Integer version of start vec
 
@@ -79,7 +84,6 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
     ivec3 ijkStep;
 
     // This variable is used to track the current progress throughout the ray march
-    float rayTravelDist = 0.0;
     vec3 vInverted;
 
     // The distance to the closest voxel boundary in units of rayTravelDist
@@ -88,6 +92,8 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
     updateVelocityFields();
 
     int axis = AXIS_X;
+
+    rayTravelDist = 0;
 
     while (rayTravelDist <= maximum)
     {
@@ -130,18 +136,20 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
 
                 if (dot(textureColor, textureColor) != 0) { // pixel is not transparent
                 
-                    float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
-                    float fogIntensity = (1 - (rayTravelDist / RENDER_DIST)) * (0xFF - (axis + 2) % 3 * 50) / 0xFF;
-
                     hit = true;
                     hitPos = start + velocity * (rayTravelDist - 0.01f);
 
-                    vec3 ret = mix(fogColor, textureColor, fogIntensity);
+
+                    float lightIntensity = 1 + (-sign(velocity[axis]) * lightDirection[axis]) / 2.0f;
 
 #ifdef CLASSIC
-                    return ret;
+                    float fogIntensity = ((rayTravelDist / RENDER_DIST)) * (0xFF - (axis + 2) % 3 * 50) / 0xFF;
+                    return mix(textureColor, fogColor, fogIntensity);
 #else
-                    return ret * mix(ambColor, sunColor, lightIntensity);
+                    
+
+                    
+                    return textureColor;// * mix(ambColor, sunColor, lightIntensity);
 #endif
                 }
             }
@@ -199,7 +207,7 @@ vec3 rayMarch(in vec3 start, vec3 velocity, float maximum, out bool hit, out vec
 #ifdef CLASSIC
     return vec3(0);
 #else
-    return mix(skyColor, sunColor, 0.5 * pow(clamp(dot(velocity, lightDirection), 0, 1) + 0.2, 5));
+    return fogColor; // sky
 #endif
 }
 
@@ -215,17 +223,27 @@ vec3 getPixel(in vec2 pixel_coords)
                                  temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
 
 
-    vec3 hitPos;
+    const vec3 fogColor = mix(skyColor, sunColor, 0.5 * pow(clamp(dot(rayDir, lightDirection), 0, 1) + 0.2, 5));
+
+    vec3 hitPos = vec3(0);
     bool hit = false;
-    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, hit, hitPos);
+    float hitDist = 0;
+    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, fogColor, hit, hitPos, hitDist);
 
 #ifndef CLASSIC
     if(hit)
     {
-        vec3 ignore = rayMarch(hitPos, lightDirection, min(float(WORLD_HEIGHT), RENDER_DIST), hit, hitPos);
+        float ignoreHitDist = 0;
+        vec3 ignoreColor = rayMarch(hitPos, lightDirection, min(float(WORLD_HEIGHT), RENDER_DIST), fogColor, hit, hitPos, ignoreHitDist);
 
-        if(hit) { // can't see the sun
-            color = color * vec3(0.3f);
+        if(hit) // can't see the sun
+            color = color * vec3(0.3f); // aplply shade
+
+
+        if(hitDist > RENDER_DIST * 0.95) {
+            float fogIntensity = ((hitDist - RENDER_DIST * 0.95) / (RENDER_DIST * 0.05));
+
+            color = mix(color, fogColor, fogIntensity);
         }
     }
 #endif

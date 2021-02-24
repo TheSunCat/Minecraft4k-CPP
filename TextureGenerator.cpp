@@ -33,9 +33,9 @@ GLuint generateTextures(long long seed)
                 }
                 case BLOCK_GRASS:
                 {
-                    if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
+                    if (y < ((x * x * 3 + x * 81) >> 2 & 0x3) + (TEXTURE_RES * 1.125f)) // grass + grass edge
                         tint = 0x6AAA40; // green
-                    else if (y < (x * x * 3 + x * 81 >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
+                    else if (y < ((x * x * 3 + x * 81) >> 2 & 0x3) + (TEXTURE_RES * 1.1875f)) // grass edge shadow
                         gsd_tempA = gsd_tempA * 2 / 3;
                     break;
                 }
