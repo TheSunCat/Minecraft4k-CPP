@@ -276,13 +276,13 @@ void collidePlayer()
 }
 
 void run(GLFWwindow* window) {
-    long long lastTime = currentTime() - 16;
+    long long lastFrameTime = currentTime() - 16;
     long long lastUpdateTime = currentTime();
 
     while (!glfwWindowShouldClose(window)) {
-        const long long startTime = currentTime();
-        deltaTime = startTime - lastTime;
-        lastTime = startTime;
+        const long long frameTime = currentTime();
+        deltaTime = frameTime - lastFrameTime;
+        lastFrameTime = frameTime;
 
 
         if (needsResUpdate) {
@@ -294,9 +294,9 @@ void run(GLFWwindow* window) {
         sinPitch = sin(cameraPitch);
         cosPitch = cos(cameraPitch);
 
-        lightDirection.y = sin(startTime / 10000.0);
+        lightDirection.y = sin(frameTime / 10000.0);
         lightDirection.x = lightDirection.y * 0.5f;
-        lightDirection.z = cos(startTime / 10000.0);
+        lightDirection.z = cos(frameTime / 10000.0);
 
         lightDirection = glm::normalize(lightDirection);
 

@@ -33,12 +33,6 @@ uniform vec3 ambColor;
 uniform vec3 skyColor;
 uniform vec3 sunColor;
 
-const float euler = 2.7182818284f;
-float sigmoid(in float x)
-{
-    return 1/(1 + pow(euler, -x));
-}
-
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
 {
@@ -66,13 +60,13 @@ bool inWorld(ivec3 pos)
     vInverted = abs(1 / velocity);\
     dist = (iStart - start) * ijkStep;\
     dist += max(ijkStep, vec3(0));\
-    dist *= vInverted\
+    dist *= vInverted
 
 
 // ~~stolen~~ took "inspiration" from https://github.com/Vercidium/voxel-ray-marching/blob/master/source/Map.cs
 
 // Voxel ray marching from http://www.cse.chalmers.se/edu/year/2010/course/TDA361/grid.pdf
-// Optimized by keeping block lookups within the current chunk, which minimises bitshifts, masks and multiplication operations
+// Optimized by keeping block lookups within the current chunk, which minimizes bitshifts, masks and multiplication operations
 vec3 rayMarch(in vec3 start, in vec3 velocity, in float maximum, in vec3 fogColor, out bool hit, out vec3 hitPos, out float rayTravelDist)
 {
     ivec3 iStart; // Integer version of start vec
@@ -225,20 +219,30 @@ vec3 getPixel(in vec2 pixel_coords)
 
     const vec3 fogColor = mix(skyColor, sunColor, 0.5 * pow(clamp(dot(rayDir, lightDirection), 0, 1) + 0.2, 5));
 
-    vec3 hitPos = vec3(0);
-    bool hit = false;
-    float hitDist = 0;
+    // raymarch outputs
+    vec3 hitPos;
+    bool hit;
+    float hitDist;
     vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, fogColor, hit, hitPos, hitDist);
 
 #ifndef CLASSIC
     if(hit)
     {
-        float ignoreHitDist = 0;
-        vec3 ignoreColor = rayMarch(hitPos, lightDirection, min(float(WORLD_HEIGHT), RENDER_DIST), fogColor, hit, hitPos, ignoreHitDist);
+        float shadowMult = (1 - lightDirection.y) * 0.3;
 
-        if(hit) // can't see the sun
-            color = color * vec3(0.3f); // aplply shade
+        if(lightDirection.y < 0) { // day
+            float ignoreHitDist = 0;
+            vec3 ignoreColor = rayMarch(hitPos, lightDirection, RENDER_DIST / 2, fogColor, hit, hitPos, ignoreHitDist);
 
+
+            if(hit) // we can't see the sun
+                shadowMult *= 1 - -lightDirection.y * 0.3;
+            
+        } else {
+            shadowMult = (1 - lightDirection.y) * 0.3; // night
+        }
+
+        color = color * shadowMult; // apply shadow
 
         if(hitDist > RENDER_DIST * 0.95) {
             float fogIntensity = ((hitDist - RENDER_DIST * 0.95) / (RENDER_DIST * 0.05));
