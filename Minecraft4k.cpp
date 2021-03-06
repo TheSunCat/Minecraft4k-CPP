@@ -164,68 +164,6 @@ void init()
     std::cout << "Done!\n";
 }
 
-void raycast(const glm::vec2 pixelCoords, glm::vec3& hoveredBlockPos_out, glm::vec3& placeBlockPos_out)
-{
-    // rotate frustum space to world space
-    const float temp = cosPitch + sinPitch;
-
-    glm::vec3 rayDir = glm::normalize(glm::vec3(cosYaw + temp * sinYaw,
-                                                cosPitch - sinPitch,
-                                                temp * cosYaw - sinYaw));
-
-    float furthestHit = PLAYER_REACH;
-    glm::vec3 closestHit(-1);
-    int closestHitAxis = 0;
-    int closestHitDir = 0;
-
-    glm::vec3 rayOrigin = playerPos;
-
-    for (int axis = 0; axis < 3; axis++)
-    {
-        // align ray to block edge on this axis
-        // and calc ray deltas
-        const float delta = rayDir[axis];
-
-        const glm::vec3 rayDelta = rayDir / abs(delta);
-
-        const float playerOffsetFromBlockEdge = delta > 0 ? 1.0f - glm::fract(rayOrigin[axis]) : glm::fract(rayOrigin[axis]);
-
-        glm::vec3 rayPos = rayOrigin + rayDelta * playerOffsetFromBlockEdge;
-        rayPos[axis] -= delta < 0 ? 1 : 0;
-
-        float rayTravelDist = playerOffsetFromBlockEdge / abs(delta);
-
-        // do the raycast
-        while (rayTravelDist < furthestHit)
-        {
-            const glm::vec3 blockHit = glm::vec3(rayPos.x - WORLD_SIZE, rayPos.y - WORLD_HEIGHT, rayPos.z - WORLD_SIZE);
-
-            // if ray exits the world
-            if (!World::isWithinWorld(blockHit))
-                break;
-
-            const int blockHitID = blockHit.y < 0 ? BLOCK_AIR : World::getBlock(blockHit);                                                                        
-
-            if (blockHitID != BLOCK_AIR)
-            {
-                closestHit = blockHit;
-                closestHitAxis = axis;
-                closestHitDir = glm::sign(rayDelta[closestHitAxis]);
-
-                furthestHit = rayTravelDist;
-            }
-
-            rayPos += rayDelta;
-            rayTravelDist += 1.0f / abs(delta);
-        }
-    }
-
-    hoveredBlockPos_out = closestHit;
-
-    placeBlockPos_out = closestHit;
-    hoveredBlockPos_out[abs(closestHitDir)] += closestHitDir;
-}
-
 void collidePlayer()
 {
     // check for movement on each axis individually?
@@ -342,7 +280,7 @@ void run(GLFWwindow* window) {
             lastUpdateTime += 10;
         }
 
-        raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
+        //raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
 
         //std::cout << hoveredBlockPos << "\n";
 
