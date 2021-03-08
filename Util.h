@@ -36,11 +36,13 @@ public:
     glm::vec2 nextVec2(float magnitude);
 
 
-    int nextInt();
+    uint32_t nextInt();
 
     glm::ivec2 nextIVec2(int magnitude);
 
-    int nextInt(int bound);
+    uint32_t nextInt(uint32_t bound);
+
+    uint64_t nextLong();
 
 
     void setSeed(uint64_t newSeed);

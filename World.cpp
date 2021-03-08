@@ -44,6 +44,14 @@ void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,
     }
 }
 
+void World::generateWorld()
+{
+    Random rand;
+    uint64_t seed = rand.nextLong();
+
+    generateWorld(seed);
+}
+
 constexpr float maxTerrainHeight = WORLD_HEIGHT / 2.0f;
 
 #ifdef CLASSIC // classic worldgen

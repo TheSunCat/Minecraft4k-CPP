@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <glm/vec3.hpp>
+#include "include/glm/vec3.hpp"
 
 //#define CLASSIC
 

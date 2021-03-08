@@ -5,9 +5,8 @@
 #include <string>
 #include <thread>
 
-#include <glad/glad.h>
+#include "include/glad/glad.h"
 #include <GLFW/glfw3.h>
-
 
 #include "Constants.h"
 #include "Shader.h"
@@ -142,11 +141,13 @@ void init()
     // generate world
 
     std::cout << "Generating world... ";
+#ifdef CLASSIC
     World::generateWorld(18295169L);
-    std::cout << "Done!\n";
+#else
+    World::generateWorld();
+#endif
 
-    std::cout << "Generating textures... ";
-    textureAtlasTex = generateTextures(151910774187927L);
+    std::cout << "Done!\n";
 
     std::cout << "Uploading world to GPU... ";
     glGenTextures(1, &worldTexture);
@@ -162,6 +163,11 @@ void init()
     glBindTexture(GL_TEXTURE_3D, 0);
 
     std::cout << "Done!\n";
+
+    std::cout << "Generating textures... ";
+    textureAtlasTex = generateTextures(151910774187927L);
+
+    std::cout << "Finished initializing engine! Onto the game.\n";
 }
 
 void collidePlayer()

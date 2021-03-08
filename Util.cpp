@@ -55,7 +55,7 @@ glm::vec2 Random::nextVec2(float magnitude)
     return glm::vec2(x - magnitude, y - magnitude);
 }
 
-int Random::nextInt()
+uint32_t Random::nextInt()
 {
     return next(32);
 }
@@ -68,19 +68,23 @@ glm::ivec2 Random::nextIVec2(int magnitude)
     return glm::ivec2(x - magnitude, y - magnitude);
 }
 
-int Random::nextInt(const int bound)
+uint32_t Random::nextInt(const uint32_t bound)
 {
-    int r = next(31);
-    const int m = bound - 1;
+    uint32_t r = next(31);
+    const uint32_t m = bound - 1;
     if ((bound & m) == 0)  // i.e., bound is a power of 2
-        r = int(bound * uint64_t(r) >> 31);
+        r = uint32_t(bound * uint64_t(r) >> 31);
     else {
-        for (int u = r;
+        for (uint32_t u = r;
             u - (r = u % bound) + m < 0;
             u = next(31));
     }
     return r;
 }
+
+    uint64_t Random::nextLong() {
+        return ((uint64_t) (next(32)) << 32) + next(32);
+    }
 
 void Random::setSeed(const uint64_t newSeed)
 {

@@ -16,5 +16,6 @@ namespace World
     void fillBox(uint8_t blockId, const glm::vec3& pos0,
         const glm::vec3& pos1, bool replace);
 
+    void generateWorld(); // randomize seed
     void generateWorld(uint64_t seed);
 }

@@ -2,9 +2,16 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
+*
+!/**/
+!*.*
 /packages
 /.vs
+/.vscode
 *.user
 /x64
 /Release
 /Debug
+CMakeCache.txt
+/CMake
+/CMakeFiles
