@@ -1,17 +1,20 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
+﻿# This file lists files that should not be uploaded by git.
 
-*
-!/**/
-!*.*
 /packages
 /.vs
 /.vscode
-*.user
 /x64
 /Release
 /Debug
-CMakeCache.txt
+/MinSizeRel
+/RelWithDebInfo
+/Minecraft4k.dir
 /CMake
 /CMakeFiles
+
+CMakeCache.txt
+*.cmake
+*.user
+*.vcxproj
+*.sln
+*.filters

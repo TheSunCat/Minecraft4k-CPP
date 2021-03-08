@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(Minecraft4k C CXX)
 
-include(CMake/Utils.cmake)
+#include(CMake/Utils.cmake)
 #include(CMake/GlobalSettingsInclude.cmake OPTIONAL)
 #set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -82,18 +82,6 @@ if(MSVC)
         /OPT:ICF
     )
 endif()
-
-################################################################################
-# Post build events
-################################################################################
-
-add_custom_command_if(
-    TARGET ${PROJECT_NAME}
-    POST_BUILD
-    COMMANDS
-    COMMAND   $<CONFIG:Debug> compress.bat $ENV{OutputPath}Minecraft4k.exe
-    COMMAND $<CONFIG:Release> compress.bat $ENV{OutputPath}Minecraft4k.exe
-)
 
 ################################################################################
 # Dependencies
