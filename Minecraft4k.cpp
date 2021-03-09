@@ -151,24 +151,17 @@ void init()
 
     std::cout << "Uploading world to GPU... ";
     glGenTextures(1, &worldTexture);
-    glBindTexture(GL_TEXTURE_3D, worldTexture);
+    glBindTexture(GL_TEXTURE_1D, worldTexture);
 
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    //glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    //glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RED, WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, 0);
-    glTexSubImage3D(GL_TEXTURE_3D,
-                0,                                      // Mipmap number
-                0, 0, 0,                                // xoffset, yoffset, zoffset
-                WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE,   // width, height, depth
-                GL_RED,                                 // format
-                GL_UNSIGNED_BYTE,                       // type
-                World::world);                          // pointer to data
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RED, WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, World::world);
 
-    glBindTexture(GL_TEXTURE_3D, 0);
+    glBindTexture(GL_TEXTURE_1D, 0);
 
     std::cout << "Done!\n";
 
