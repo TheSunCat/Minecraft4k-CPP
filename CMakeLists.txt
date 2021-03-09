@@ -47,6 +47,7 @@ set(ALL_FILES
 
 
 add_executable(${PROJECT_NAME} ${ALL_FILES})
+set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 #set(ROOT_NAMESPACE Minecraft4k)
 
@@ -78,7 +79,6 @@ if(MSVC)
         /DEBUG;
         /SUBSYSTEM:CONSOLE;
         /OPT:REF;
-        /LTCG;
         /OPT:ICF
     )
 endif()
@@ -87,20 +87,7 @@ endif()
 # Dependencies
 ################################################################################
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
-    "glfw;"
-    "dl"
-    #"kernel32;"
-    #"user32;"
-    #"gdi32;"
-    #"winspool;"
-    #"comdlg32;"
-    #"advapi32;"
-    #"shell32;"
-    #"ole32;"
-    #"oleaut32;"
-    #"uuid;"
-    #"odbc32;"
-    #"odbccp32"
+    "glfw"
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
