@@ -151,17 +151,24 @@ void init()
 
     std::cout << "Uploading world to GPU... ";
     glGenTextures(1, &worldTexture);
-    glBindTexture(GL_TEXTURE_1D, worldTexture);
+    glBindTexture(GL_TEXTURE_3D, worldTexture);
 
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    //glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    //glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RED, WORLD_SIZE * WORLD_HEIGHT * WORLD_SIZE, 0, GL_RED, GL_UNSIGNED_BYTE, World::world);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glBindTexture(GL_TEXTURE_1D, 0);
+    glTexImage3D(GL_TEXTURE_3D,                 // target
+        0,                                      // level
+        GL_RED,                                 // width
+        WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE,   // size
+        0,                                      // border
+        GL_RED,                                 // format
+        GL_UNSIGNED_BYTE,                       // type
+        World::world);                          // pixels
+
+    glBindTexture(GL_TEXTURE_3D, 0);
 
     std::cout << "Done!\n";
 
