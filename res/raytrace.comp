@@ -1,7 +1,7 @@
 #version 430
 layout(local_size_x = 16, local_size_y = 16) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
-layout(r8ui, binding = 1) uniform uimage3D blockData;
+layout(r8ui, binding = 1) uniform uimage1D blockData;
 
 //! #define WORLD_SIZE 64
 //! #define WORLD_HEIGHT 64
@@ -36,7 +36,9 @@ uniform vec3 sunColor;
 // get the block at the specified position in the world
 int getBlock(ivec3 coords)
 {
-    return int(imageLoad(blockData, coords).x);
+    int index = coords.x + coords.y * WORLD_SIZE + coords.z * WORLD_SIZE * WORLD_HEIGHT;
+
+    return int(imageLoad(blockData, index).x);
 }
 
 bool inWorld(ivec3 pos)
