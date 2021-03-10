@@ -86,9 +86,16 @@ endif()
 ################################################################################
 # Dependencies
 ################################################################################
+if(UNIX)
+set(ADDITIONAL_LIBRARY_DEPENDENCIES
+    "glfw"
+    "dl"
+)
+else()
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "glfw"
 )
+endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 
