@@ -60,7 +60,7 @@ glm::vec3 newHoverBlockPos;
 
 glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
-float cameraYaw = 0.0f;
+float cameraYaw = 0.01f; // make it not axis aligned by default to avoid raymarching bug
 float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
 glm::vec2 frustumDiv = (SCR_RES * FOV);// / defaultRes; // TODO why divide by defaultRes? Removing doesn't seem to affect it.
@@ -159,11 +159,15 @@ void init()
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    glTexImage3D(GL_TEXTURE_3D,                 // target
+    glTexStorage3D(GL_TEXTURE_3D,               // target
+        1,                                      // levels
+        GL_R8,                                  // internal format
+        WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE);  // size
+
+    glTexSubImage3D(GL_TEXTURE_3D,              // target
         0,                                      // level
-        GL_RED,                                 // width
+        0, 0, 0,                                // offsets
         WORLD_SIZE, WORLD_HEIGHT, WORLD_SIZE,   // size
-        0,                                      // border
         GL_RED,                                 // format
         GL_UNSIGNED_BYTE,                       // type
         World::world);                          // pixels
@@ -224,7 +228,7 @@ void collidePlayer()
         }
     }
 
-    std::cout << playerPos << '\n';
+    //std::cout << playerPos << '\n';
 }
 
 void run(GLFWwindow* window) {
