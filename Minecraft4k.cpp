@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <sstream>
@@ -60,10 +59,10 @@ glm::vec3 newHoverBlockPos;
 
 glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
-float cameraYaw = 0.01f; // make it not axis aligned by default to avoid raymarching bug
+float cameraYaw = 0.01f; // make it not axis aligned by default to avoid raymarching error
 float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
-glm::vec2 frustumDiv = (SCR_RES * FOV);// / defaultRes; // TODO why divide by defaultRes? Removing doesn't seem to affect it.
+glm::vec2 frustumDiv = (SCR_RES * FOV);
 
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
@@ -131,7 +130,7 @@ void updateScreenResolution(GLFWwindow* window)
     glfwSetWindowTitle(window, title.c_str());
 
     glDeleteTextures(1, &screenTexture);
-    initTexture(&screenTexture, SCR_RES.x, SCR_RES.y);
+    initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
 
     needsResUpdate = false;
 }
@@ -195,7 +194,7 @@ void collidePlayer()
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
             const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       % 2) * 0.6f - 0.3f ),
-                                                         (newPlayerPos.y + (colliderIndex / 4 - 1.f) * 0.8f + 0.65f),
+                                                         (newPlayerPos.y + (colliderIndex / 4   - 1) * 0.8f + 0.65f),
                                                          (newPlayerPos.z + (colliderIndex / 2   % 2) * 0.6f - 0.3f ));
 
             if (colliderBlockPos.y < 0) // ignore collision above the world height limit
@@ -232,11 +231,11 @@ void collidePlayer()
 }
 
 void run(GLFWwindow* window) {
-    long long lastFrameTime = currentTime() - 16;
-    long long lastUpdateTime = currentTime();
+    auto lastUpdateTime = currentTime();
+    float lastFrameTime = lastUpdateTime - 16;
 
     while (!glfwWindowShouldClose(window)) {
-        const long long frameTime = currentTime();
+        const float frameTime = currentTime();
         deltaTime = frameTime - lastFrameTime;
         lastFrameTime = frameTime;
 
@@ -250,9 +249,9 @@ void run(GLFWwindow* window) {
         sinPitch = sin(cameraPitch);
         cosPitch = cos(cameraPitch);
 
-        lightDirection.y = sin(frameTime / 10000.0);
+        lightDirection.y = sin(frameTime / 10000.0f);
         lightDirection.x = lightDirection.y * 0.5f;
-        lightDirection.z = cos(frameTime / 10000.0);
+        lightDirection.z = cos(frameTime / 10000.0f);
 
         lightDirection = glm::normalize(lightDirection);
 
@@ -286,9 +285,9 @@ void run(GLFWwindow* window) {
             collidePlayer();
 
             for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
-                int magicX = int(playerPos.x + (colliderIndex & 1) * 0.6F - 0.3F);
-                int magicY = int(playerPos.y + ((colliderIndex >> 2) - 1) * 0.8F + 0.65F);
-                int magicZ = int(playerPos.z + (colliderIndex >> 1 & 1) * 0.6F - 0.3F);
+                int magicX = int(playerPos.x +       (colliderIndex       & 1) * 0.6F - 0.3F);
+                int magicY = int(playerPos.y + float((colliderIndex >> 2) - 1) * 0.8F + 0.65F);
+                int magicZ = int(playerPos.z +       (colliderIndex >> 1  & 1) * 0.6F - 0.3F);
 
                 // set block to air if inside player
                 if (World::isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
@@ -339,7 +338,7 @@ void run(GLFWwindow* window) {
         glInvalidateTexImage(screenTexture, 0);
 
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-        glDispatchCompute((SCR_RES.x + 15) / 16, (SCR_RES.y + 15) / 16, 1);
+        glDispatchCompute(GLuint((SCR_RES.x + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE), GLuint((SCR_RES.y + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE), 1);
         glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
         glUseProgram(0);
 
@@ -351,7 +350,7 @@ void run(GLFWwindow* window) {
         glBindTexture(GL_TEXTURE_2D, screenTexture);
         glBindBuffer(GL_ARRAY_BUFFER, buffer);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -448,7 +447,7 @@ void key_callback(GLFWwindow*, const int key, const int scancode, const int acti
     }
 }
 
-void initBuffers(GLuint* vao, GLuint* buffer) {
+void initBuffers() {
     GLfloat vertices[] = {
         -1.f, -1.f,
         0.f, 1.f,
@@ -464,11 +463,11 @@ void initBuffers(GLuint* vao, GLuint* buffer) {
         1.f, 0.f
     };
 
-    glGenVertexArrays(1, vao);
-    glBindVertexArray(*vao);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
 
-    glGenBuffers(1, buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, *buffer);
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -571,6 +570,8 @@ int main(const int argc, const char** argv)
     defines << "#define CLASSIC\n";
 #endif
 
+    defines << "layout(local_size_x = " << WORK_GROUP_SIZE << ", local_size_y = " << WORK_GROUP_SIZE << ") in;";
+
     const std::string definesStr = defines.str();
 
     screenShader = Shader("screen", "screen");
@@ -581,11 +582,11 @@ int main(const int argc, const char** argv)
     glActiveTexture(GL_TEXTURE0);
 
     std::cout << "Building buffers... ";
-    initBuffers(&vao, &buffer);
+    initBuffers();
     std::cout << "Done!\n";
 
     std::cout << "Building render texture... ";
-    initTexture(&screenTexture, SCR_RES.x, SCR_RES.y);
+    initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
     std::cout << "Done!\n";
 
     std::cout << "Initializing engine...\n";

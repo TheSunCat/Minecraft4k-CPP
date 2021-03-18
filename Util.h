@@ -7,7 +7,7 @@
 
 constexpr float PI = 3.14159265359f;
 
-long long currentTime();
+float currentTime();
 
 // It's just the Java Random class
 class Random

@@ -4,6 +4,11 @@
 
 //#define CLASSIC
 
+
+// PERFORMANCE OPTIONS
+
+constexpr int WORK_GROUP_SIZE = 16;
+
 constexpr int WINDOW_WIDTH = 856;
 constexpr int WINDOW_HEIGHT = 480;
 
@@ -13,7 +18,6 @@ constexpr float RENDER_DIST = 20.0f;
 constexpr float RENDER_DIST = 80.0f;
 #endif
 
-constexpr float PLAYER_REACH = 5.0f;
 
 constexpr int TEXTURE_RES = 16;
 
@@ -24,6 +28,9 @@ constexpr int WORLD_SIZE = 512;
 #endif
 constexpr int WORLD_HEIGHT = 64;
 
+// END OF PERFORMANCE OPTIONS
+
+
 constexpr uint8_t BLOCK_AIR = 0;
 constexpr uint8_t BLOCK_GRASS = 1;
 constexpr uint8_t BLOCK_DEFAULT_DIRT = 2;
@@ -32,6 +39,8 @@ constexpr uint8_t BLOCK_BRICKS = 5;
 constexpr uint8_t BLOCK_WOOD = 7;
 constexpr uint8_t BLOCK_LEAVES = 8;
 constexpr uint8_t BLOCK_MIRROR = 9;
+
+constexpr float PLAYER_REACH = 5.0f;
 
 // COLORS
 
