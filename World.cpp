@@ -44,6 +44,97 @@ void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,
     }
 }
 
+glm::vec3 World::raycast(glm::vec3 origin, glm::vec3 dir, float maxDist, int& hitAxis)
+{
+    //glm::ivec3 iOrigin = glm::ivec3(origin); // Integer version of start vec
+
+    // Determine the chunk-relative position of the ray using a bit-mask
+    int i = origin.x, j = origin.y, k = origin.z;
+
+    // The amount to increase i, j and k in each axis (either 1 or -1)
+    glm::ivec3 ijkStep = glm::ivec3(glm::sign(dir));
+
+    // This variable is used to track the current progress throughout the ray march
+    glm::vec3 vInverted = glm::abs(1.0F / dir);
+
+    // The distance to the closest voxel boundary in units of rayTravelDist
+    glm::vec3 dist = glm::fract(origin) * glm::vec3(ijkStep);
+    dist += glm::max(ijkStep, glm::ivec3(0));
+    dist *= vInverted;
+
+    int axis = 0;
+
+    float rayTravelDist = 0;
+
+    while (rayTravelDist <= maxDist)
+    {
+        // Exit check
+        if(!World::isWithinWorld(glm::ivec3(i, j, k)))
+            break;
+
+        int blockHit = getBlock(glm::ivec3(i, j, k));
+
+        if (blockHit != BLOCK_AIR)
+        {
+            glm::vec3 hitPos = origin + dir * rayTravelDist;
+
+            hitAxis = axis;
+            if(dir[hitAxis] > 0.0F)
+                hitAxis += 3;
+
+            return hitPos;// origin + dir * (rayTravelDist - 0.01f);
+        }
+
+        // Determine the closest voxel boundary
+        if (dist.y < dist.x)
+        {
+            if (dist.y < dist.z)
+            {
+                // Advance to the closest voxel boundary in the Y direction
+
+                // Increment the chunk-relative position and the block access position
+                j += ijkStep.y;
+
+                // Update our progress in the ray 
+                rayTravelDist = dist.y;
+
+                // Set the new distance to the next voxel Y boundary
+                dist.y += vInverted.y;
+
+                // For collision purposes we also store the last axis that the ray collided with
+                // This allows us to reflect particle velocity on the correct axis
+                axis = 1;//AXIS_Y;
+            }
+            else
+            {
+                k += ijkStep.z;
+
+                rayTravelDist = dist.z;
+                dist.z += vInverted.z;
+                axis = 2;//AXIS_Z;
+            }
+        }
+        else if (dist.x < dist.z)
+        {
+            i += ijkStep.x;
+
+            rayTravelDist = dist.x;
+            dist.x += vInverted.x;
+            axis = 0;//AXIS_X;
+        }
+        else
+        {
+            k += ijkStep.z;
+
+            rayTravelDist = dist.z;
+            dist.z += vInverted.z;
+            axis = 2;//AXIS_Z;
+        }
+    }
+
+    return glm::vec3(-1); // no hit
+}
+
 void World::generateWorld()
 {
     Random rand;
