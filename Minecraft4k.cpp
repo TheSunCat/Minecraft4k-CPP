@@ -23,6 +23,13 @@ struct Controller
     glm::vec2 lastMousePos;
 
     bool firstMouse = true;
+
+    void reset()
+    {
+        forward = 0.0f;
+        right = 0.0f;
+        jump = false;
+    }
 };
 
 Controller controller{};
@@ -230,6 +237,8 @@ void collidePlayer()
     //std::cout << playerPos << '\n';
 }
 
+void pollInputs(GLFWwindow* window);
+
 void run(GLFWwindow* window) {
     auto lastUpdateTime = currentTime();
     float lastFrameTime = lastUpdateTime - 16;
@@ -239,6 +248,7 @@ void run(GLFWwindow* window) {
         deltaTime = frameTime - lastFrameTime;
         lastFrameTime = frameTime;
 
+        pollInputs(window);
 
         if (needsResUpdate) {
             updateScreenResolution(window);
@@ -399,52 +409,66 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     cameraPitch = clamp(cameraPitch, -PI / 2.0f, PI / 2.0f);
 }
 
-void key_callback(GLFWwindow*, const int key, const int scancode, const int action, const int mods)
+bool keyDown(GLFWwindow* window, int key)
 {
-    if(action == GLFW_PRESS || action == GLFW_REPEAT)
+    return glfwGetKey(window, key) == GLFW_PRESS;
+}
+
+
+std::unordered_map<int, float> keyHistory;
+bool keyPress(GLFWwindow* window, int key)
+{
+    int pressState = glfwGetKey(window, key);
+
+    auto loc = keyHistory.find(key);
+
+    if(pressState == GLFW_PRESS)
     {
-        switch(key)
-        {
-        case GLFW_KEY_W:
-            controller.forward = 1.0f;
-            break;
-        case GLFW_KEY_S:
-            controller.forward = -1.0f;
-            break;
-        case GLFW_KEY_D:
-            controller.right = 1.0f;
-            break;
-        case GLFW_KEY_A:
-            controller.right = -1.0f;
-            break;
-        case GLFW_KEY_SPACE:
-            controller.jump = true;
-            break;
-        case GLFW_KEY_COMMA:
-            SCR_DETAIL--;
-            needsResUpdate = true;
-            break;
-        case GLFW_KEY_PERIOD:
-            SCR_DETAIL++;
-            needsResUpdate = true;
-            break;
+        if (loc == keyHistory.end()) { // not in history, this is first key press
+            keyHistory.insert(std::make_pair(key, currentTime()));
+
+            return true;
         }
-    } else // action == GLFW_RELEASE
-    {
-        switch (key)
-        {
-        case GLFW_KEY_W:
-        case GLFW_KEY_S:
-            controller.forward = 0.0f;
-            break;
-        case GLFW_KEY_D:
-        case GLFW_KEY_A:
-            controller.right = 0.0f;
-            break;
-        case GLFW_KEY_SPACE:
-            controller.jump = false;
-        }
+
+        auto time = currentTime();
+        if (time - loc->second > 500) // repeat key press after 500ms
+            return true;
+        else
+            return false;
     }
+
+    if (loc != keyHistory.end()) // key released, so clear from history
+        keyHistory.erase(loc);
+
+    return false;
+}
+
+void pollInputs(GLFWwindow* window)
+{
+    controller.reset();
+
+    if(keyDown(window, GLFW_KEY_W))
+        controller.forward += 1.0f;
+    if (keyDown(window, GLFW_KEY_S))
+        controller.forward -= 1.0f;
+    if (keyDown(window, GLFW_KEY_D))
+        controller.right += 1.0f;
+    if (keyDown(window, GLFW_KEY_A))
+        controller.right -= 1.0f;
+    if (keyDown(window, GLFW_KEY_SPACE))
+        controller.jump = true;
+
+    if (keyPress(window, GLFW_KEY_COMMA)) {
+        SCR_DETAIL--;
+        needsResUpdate = true;
+    }
+    if (keyPress(window, GLFW_KEY_PERIOD)) {
+        SCR_DETAIL++;
+        needsResUpdate = true;
+    }
+
+    controller.forward = clamp(controller.forward, -1.0f, 1.0f);
+    controller.right = clamp(controller.right, -1.0f, 1.0f);
 }
 
 void initBuffers() {
@@ -556,7 +580,6 @@ int main(const int argc, const char** argv)
     glClearColor(0, 0, 0, 1);
 
     glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetKeyCallback(window, key_callback);
 
     std::cout << "Done!\n";
 
