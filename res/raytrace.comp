@@ -139,7 +139,7 @@ vec3 rayMarch(in vec3 start, in vec3 velocity, in float maximum, in vec3 fogColo
                     
 
                     
-                    return textureColor;// * mix(ambColor, sunColor, lightIntensity);
+                    return textureColor * mix(ambColor, sunColor, lightIntensity);
 #endif
                 }
             }
