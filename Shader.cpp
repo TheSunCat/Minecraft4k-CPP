@@ -18,28 +18,28 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     std::ifstream vShaderFile;
     std::ifstream fShaderFile;
 
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    try {
-        std::stringstream vShaderStream, fShaderStream;
-        
-        // read file buffer contents into streams, then into strings
-        vShaderFile.open(vertexName);
-        vShaderStream << vShaderFile.rdbuf();
-        vShaderFile.close();
-        vertexCode = vShaderStream.str();
-
-        fShaderFile.open(fragmentName);
-        fShaderStream << fShaderFile.rdbuf();
-        fShaderFile.close();
-        fragmentCode = fShaderStream.str();
-    }
-    catch (std::ifstream::failure& e) {
-        std::cout << "Failed to read one of the shader files. It's \"" << vertexName << "\" or \"" << fragmentName << "\". No, I'm not telling you which.\n"
-                  << "Error code: " << e.code() << std::endl;
+    std::stringstream vShaderStream, fShaderStream;
+    
+    // read file buffer contents into streams, then into strings
+    vShaderFile.open(vertexName);
+    if(!vShaderFile.is_open()) {
+        std::cout << "Failed to read vertex shader \"" << vertexName << "\"." << std::endl;
         return;
     }
+
+    vShaderStream << vShaderFile.rdbuf();
+    vShaderFile.close();
+    vertexCode = vShaderStream.str();
+
+    fShaderFile.open(fragmentName);
+    if(!fShaderFile.is_open()) {
+        std::cout << "Failed to read fragment shader \"" << fragmentName << "\"." << std::endl;
+        return;
+    }
+
+    fShaderStream << fShaderFile.rdbuf();
+    fShaderFile.close();
+    fragmentCode = fShaderStream.str();
 
     const char* vShaderCode = vertexCode.c_str();
     const char* fShaderCode = fragmentCode.c_str();
@@ -106,22 +106,19 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     std::string computeCode;
     std::ifstream computeFile;
 
-    computeFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    std::stringstream computeStream;
 
-    try {
-        std::stringstream computeStream;
-
-        computeFile.open(computeName);
-
-        computeStream << computeFile.rdbuf();
-        computeFile.close();
-        computeCode = computeStream.str();
-    }
-    catch (std::ifstream::failure& e) {
-        std::cout << "Failed to load compute shader \"" << computeName << "\"!"
-                  << "Error code: " << e.code() << std::endl;
+    computeFile.open(computeName);
+    if(!computeFile.is_open()) {
+        std::cout << "Failed to load compute shader \"" << computeName << "\"!" << std::endl;
         return;
     }
+
+    computeStream << computeFile.rdbuf();
+    computeFile.close();
+    computeCode = computeStream.str();
+
+    
 
     if(hasExtra == HasExtra::Yes)
         computeCode.insert(strlen("#version 430\n"), extraCode);

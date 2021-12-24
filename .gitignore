@@ -19,5 +19,7 @@ CMakeCache.txt
 *.sln
 *.filters
 
+/build
+
 Makefile
 Minecraft4k

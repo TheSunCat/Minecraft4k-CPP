@@ -2,17 +2,10 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(Minecraft4k C CXX)
 
-#include(CMake/Utils.cmake)
-#include(CMake/GlobalSettingsInclude.cmake OPTIONAL)
-#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
 include_directories(include)
 
 set(PROJECT_NAME Minecraft4k)
 
-################################################################################
-# Source groups
-################################################################################
 set(Header_Files
     "Constants.h"
     "Shader.h"
@@ -49,11 +42,27 @@ set(ALL_FILES
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
-#set(ROOT_NAMESPACE Minecraft4k)
 
-################################################################################
+if(UNIX)
+    # TODO -m32, use C libs 
+    target_compile_options(${PROJECT_NAME} PRIVATE
+            -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
+            -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
+	    -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
+	    -fcf-protection=none -N -fno-align-functions -fomit-frame-pointer
+        )
+
+    target_link_options(${PROJECT_NAME} PRIVATE
+            -Wl,--hash-style=gnu -Wl,--build-id=none 
+        )
+
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+	COMMAND strip -S --strip-unneeded --remove-section=.note.gnu.gold-version --remove-section=.comment --remove-section=.note --remove-section=.note.gnu.build-id --remove-section=.note.ABI-tag -R .note -R .comment -R .eh_frame -R .eh_frame_hdr -s ${PROJECT_NAME}
+    )
+
+endif()
+
 # Compile and link options
-################################################################################
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:
@@ -83,9 +92,7 @@ if(MSVC)
     )
 endif()
 
-################################################################################
 # Dependencies
-################################################################################
 if(UNIX)
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "glfw"
@@ -99,8 +106,6 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 
-
 link_directories(${PROJECT_NAME} PRIVATE
     "lib"
 )
-
