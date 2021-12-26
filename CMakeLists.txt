@@ -60,6 +60,8 @@ if(UNIX)
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 	COMMAND strip -S --strip-unneeded --remove-section=.note.gnu.gold-version --remove-section=.comment --remove-section=.note --remove-section=.note.gnu.build-id --remove-section=.note.ABI-tag -R .note -R .comment -R .eh_frame -R .eh_frame_hdr -s ${PROJECT_NAME}
+	
+	COMMAND objcopy --remove-section .note.gnu.property --remove-section .gnu.version --remove-section .fini --remove-section .init_array --remove-section .fini_array --remove-section .got ${PROJECT_NAME}
     )
 
 endif()

@@ -3,7 +3,11 @@
 #include <string>
 #include <thread>
 
-#include "include/glad/glad.h"
+#ifdef __unix__
+#include <unistd.h>
+#endif
+
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 #include "Constants.h"
@@ -373,8 +377,15 @@ void run(GLFWwindow* window) {
         glfwPollEvents();
     }
 
+    // put it out of its misery (evil code)
+#ifdef __unix__
+    fflush(stdout);
+    _exit(0); // UNIX has a ruder function >:)
+#else
+    _Exit(0);
+#endif
 
-    glfwTerminate();
+    //glfwTerminate();
 }
 
 void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
