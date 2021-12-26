@@ -13,19 +13,19 @@ uint8_t World::getBlock(const int x, const int y, const int z)
     return world[x + y * WORLD_SIZE + z * WORLD_SIZE * WORLD_HEIGHT];
 }
 
-uint8_t World::getBlock(const glm::vec3& pos)
+uint8_t World::getBlock(const vec3& pos)
 {
     return World::getBlock(pos.x, pos.y, pos.z);
 }
 
-bool World::isWithinWorld(const glm::vec3& pos)
+bool World::isWithinWorld(const vec3& pos)
 {
     return pos.x >= 0.0f && pos.y >= 0.0f && pos.z >= 0.0f &&
         pos.x < WORLD_SIZE && pos.y < WORLD_HEIGHT && pos.z < WORLD_SIZE;
 }
 
-void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,
-    const glm::vec3& pos1, const bool replace)
+void World::fillBox(const uint8_t blockId, const vec3& pos0,
+    const vec3& pos1, const bool replace)
 {
     for (int x = pos0.x; x < pos1.x; x++)
     {
@@ -44,22 +44,22 @@ void World::fillBox(const uint8_t blockId, const glm::vec3& pos0,
     }
 }
 
-glm::vec3 World::raycast(glm::vec3 origin, glm::vec3 dir, float maxDist, int& hitAxis)
+vec3 World::raycast(vec3 origin, vec3 dir, float maxDist, int& hitAxis)
 {
-    //glm::ivec3 iOrigin = glm::ivec3(origin); // Integer version of start vec
+    //ivec3 iOrigin = ivec3(origin); // Integer version of start vec
 
     // Determine the chunk-relative position of the ray using a bit-mask
     int i = origin.x, j = origin.y, k = origin.z;
 
     // The amount to increase i, j and k in each axis (either 1 or -1)
-    glm::ivec3 ijkStep = glm::ivec3(glm::sign(dir));
+    vec3 ijkStep = dir.sign();// TODO .truncated();
 
     // This variable is used to track the current progress throughout the ray march
-    glm::vec3 vInverted = glm::abs(1.0F / dir);
+    vec3 vInverted = (1.0F / dir).abs();
 
     // The distance to the closest voxel boundary in units of rayTravelDist
-    glm::vec3 dist = glm::fract(origin) * glm::vec3(ijkStep);
-    dist += glm::max(ijkStep, glm::ivec3(0));
+    vec3 dist = origin.fract() * vec3(ijkStep);
+    dist += max(ijkStep, vec3(0));
     dist *= vInverted;
 
     int axis = 0;
@@ -69,14 +69,14 @@ glm::vec3 World::raycast(glm::vec3 origin, glm::vec3 dir, float maxDist, int& hi
     while (rayTravelDist <= maxDist)
     {
         // Exit check
-        if(!World::isWithinWorld(glm::ivec3(i, j, k)))
+        if(!World::isWithinWorld(vec3(i, j, k)))
             break;
 
-        int blockHit = getBlock(glm::ivec3(i, j, k));
+        int blockHit = getBlock(vec3(i, j, k));
 
         if (blockHit != BLOCK_AIR)
         {
-            glm::vec3 hitPos = origin + dir * rayTravelDist;
+            vec3 hitPos = origin + dir * rayTravelDist;
 
             hitAxis = axis;
             if(dir[hitAxis] > 0.0F)
@@ -132,7 +132,7 @@ glm::vec3 World::raycast(glm::vec3 origin, glm::vec3 dir, float maxDist, int& hi
         }
     }
 
-    return glm::vec3(-1); // no hit
+    return vec3(-1); // no hit
 }
 
 void World::generateWorld()
@@ -176,7 +176,7 @@ void World::generateWorld(uint64_t seed)
 
     for (int x = WORLD_SIZE; x >= 0; x--) {
         for (int z = 0; z < WORLD_SIZE; z++) {
-            const int terrainHeight = round(maxTerrainHeight + Perlin::noise(x / 32.f, z / 32.f) * 10.0f);
+            const int terrainHeight = roundFloat(maxTerrainHeight + Perlin::noise(x / 32.f, z / 32.f) * 10.0f);
 
             for (int y = 0; y < WORLD_HEIGHT; y++) {
                 uint8_t block;
@@ -200,26 +200,26 @@ void World::generateWorld(uint64_t seed)
         for (int z = 4; z < WORLD_SIZE - 4; z += 8) {
             if (rand.nextInt(4) == 0) // spawn tree
             {
-                const glm::vec2 treePos = rand.nextIVec2(2) + glm::ivec2(x, z);
+                const vec2 treePos = rand.nextIVec2(2) + vec2(x, z);
 
-                const int terrainHeight = int(round(maxTerrainHeight + Perlin::noise(treePos / 32.f) * 10.0f)) - 1;
+                const int terrainHeight = int(roundFloat(maxTerrainHeight + Perlin::noise(treePos / 32.f) * 10.0f)) - 1;
                 const int trunkHeight = 4 + rand.nextInt(2); // min 4 max 5
 
                 // fill trunk
                 for (int y = terrainHeight; y >= terrainHeight - trunkHeight; y--)
                 {
-                    setBlock(treePos.s, y, treePos.t, BLOCK_WOOD);
+                    setBlock(treePos.x, y, treePos.y, BLOCK_WOOD);
                 }
 
                 // fill base foliage
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treePos.s - 2, terrainHeight - trunkHeight + 1, treePos.t - 2),
-                    glm::vec3(treePos.s + 3, terrainHeight - trunkHeight + 3, treePos.t + 3), false);
+                    vec3(treePos.x - 2, terrainHeight - trunkHeight + 1, treePos.y - 2),
+                    vec3(treePos.x + 3, terrainHeight - trunkHeight + 3, treePos.y + 3), false);
 
                 // fill crown
                 fillBox(BLOCK_LEAVES,
-                    glm::vec3(treePos.s - 1, terrainHeight - trunkHeight - 1, treePos.t - 1),
-                    glm::vec3(treePos.s + 2, terrainHeight - trunkHeight + 1, treePos.t + 2), false);
+                    vec3(treePos.x - 1, terrainHeight - trunkHeight - 1, treePos.y - 1),
+                    vec3(treePos.x + 2, terrainHeight - trunkHeight + 1, treePos.y + 2), false);
 
                 // cut out corners randomly
                 for (int i = 0; i < 4; i++)
@@ -230,28 +230,28 @@ void World::generateWorld(uint64_t seed)
 
 
                     // base foliage
-                    const glm::ivec2 foliagePos = glm::ivec2(treePos.s + (2 * bit0), treePos.t + (2 * bit1));
+                    const vec2 foliagePos = vec2(treePos.x + (2 * bit0), treePos.y + (2 * bit1));
 
 
                     int cornerStyle = rand.nextInt(7);
 
                     if ((cornerStyle == 0) || (cornerStyle == 2)) // cut out top
-                       setBlock(foliagePos.s, terrainHeight - trunkHeight + 1, foliagePos.t, BLOCK_AIR);
+                       setBlock(foliagePos.x, terrainHeight - trunkHeight + 1, foliagePos.y, BLOCK_AIR);
 
                     if ((cornerStyle == 1) || (cornerStyle == 2)) // cut out bottom
-                        setBlock(foliagePos.s, terrainHeight - trunkHeight + 2, foliagePos.t, BLOCK_AIR);
+                        setBlock(foliagePos.x, terrainHeight - trunkHeight + 2, foliagePos.y, BLOCK_AIR);
 
 
                     // crown
-                    const glm::ivec2 crownPos = glm::ivec2(treePos.s + bit0, treePos.t + bit1);
+                    const vec2 crownPos = vec2(treePos.x + bit0, treePos.y + bit1);
 
                     cornerStyle = rand.nextInt(5);
 
                     if (cornerStyle == 0) // cut out bottom 1/10 times
-                        setBlock(crownPos.s, terrainHeight - trunkHeight, crownPos.t, BLOCK_AIR);
+                        setBlock(crownPos.x, terrainHeight - trunkHeight, crownPos.y, BLOCK_AIR);
 
                     // always cut crown top
-                    setBlock(crownPos.s, terrainHeight - trunkHeight - 1, crownPos.t, BLOCK_AIR);
+                    setBlock(crownPos.x, terrainHeight - trunkHeight - 1, crownPos.y, BLOCK_AIR);
                 }
             }
         }

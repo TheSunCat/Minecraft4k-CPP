@@ -8,7 +8,7 @@ GLuint generateTextures(long long seed)
     // set random seed to generate textures
     Random rand = Random(seed);
 
-    std::cout << "Building textures... ";
+    printf("Building textures... ");
     int* textureAtlas = new int[TEXTURE_RES * TEXTURE_RES * 3 * 16];
 
     // procedurally generates the 16x3 textureAtlas
@@ -110,7 +110,7 @@ GLuint generateTextures(long long seed)
 
     GLuint textureAtlasTex = 0;
 
-    std::cout << "Uploading texture atlas to GPU... ";
+    printf("Uploading texture atlas to GPU... ");
     glGenTextures(1, &textureAtlasTex);
     glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
 
@@ -126,7 +126,7 @@ GLuint generateTextures(long long seed)
 
     delete[] textureAtlas;
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
     return textureAtlasTex;
 }

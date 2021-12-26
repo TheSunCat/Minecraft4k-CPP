@@ -1,5 +1,4 @@
 #include <cmath>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -20,7 +19,7 @@ struct Controller
 
     bool jump;
 
-    glm::vec2 lastMousePos;
+    vec2 lastMousePos;
 
     bool firstMouse = true;
 
@@ -38,9 +37,9 @@ bool needsResUpdate = true;
 
 int SCR_DETAIL = 2;
 
-constexpr glm::vec2 defaultRes(214, 120);
+constexpr vec2 defaultRes(214, 120);
 
-glm::vec2 SCR_RES = defaultRes * float(1 << SCR_DETAIL);
+vec2 SCR_RES = defaultRes * float(1 << SCR_DETAIL);
 
 Shader screenShader;
 Shader computeShader;
@@ -54,34 +53,35 @@ GLuint screenTexture;
 float deltaTime = 16.666f; // 16.66 = 60fps
 
 // spawn player at world center
-glm::vec3 playerPos = glm::vec3(WORLD_SIZE / 2.0f + 0.5f,
-                                 1, 
-                                WORLD_SIZE / 2.0f + 0.5f);
-glm::vec3 playerVelocity;
+vec3 playerPos = vec3(WORLD_SIZE / 2.0f + 0.5f,
+                      1, 
+                      WORLD_SIZE / 2.0f + 0.5f);
 
-glm::vec3 hoveredBlockPos;
-glm::vec3 placeBlockPos;
+vec3 playerVelocity;
 
-glm::vec3 newHoverBlockPos;
+vec3 hoveredBlockPos;
+vec3 placeBlockPos;
 
-glm::vec3 lightDirection = glm::vec3(0.866025404f, -0.866025404f, 0.866025404f);
+vec3 newHoverBlockPos;
+
+vec3 lightDirection = vec3(0.866025404f, -0.866025404f, 0.866025404f);
 
 float cameraYaw = 0.01f; // make it not axis aligned by default to avoid raymarching error
 float cameraPitch = -2.0f * PI;                                                                                 
 float FOV = 90.0f;
-glm::vec2 frustumDiv = (SCR_RES * FOV);
+vec2 frustumDiv = (SCR_RES * FOV);
 
 float sinYaw, sinPitch;
 float cosYaw, cosPitch;
 
-glm::vec3 sunColor;
-glm::vec3 ambColor;
-glm::vec3 skyColor;
+vec3 ambColor;
+vec3 skyColor;
+vec3 sunColor;
 
 uint8_t hotbar[] { BLOCK_GRASS, BLOCK_DEFAULT_DIRT, BLOCK_STONE, BLOCK_BRICKS, BLOCK_WOOD, BLOCK_LEAVES };
 int heldBlockIndex = 0;
 
-static glm::vec3 lerp(const glm::vec3& start, const glm::vec3& end, const float t)
+static vec3 lerp(const vec3& start, const vec3& end, const float t)
 {
     return start + (end - start) * t;
 }
@@ -146,16 +146,16 @@ void init()
 {
     // generate world
 
-    std::cout << "Generating world... ";
+    printf("Generating world... ");
 #ifdef CLASSIC
     World::generateWorld(18295169L);
 #else
     World::generateWorld();
 #endif
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Uploading world to GPU... ";
+    printf("Uploading world to GPU... ");
     glGenTextures(1, &worldTexture);
     glBindTexture(GL_TEXTURE_3D, worldTexture);
 
@@ -180,12 +180,12 @@ void init()
 
     glBindTexture(GL_TEXTURE_3D, 0);
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Generating textures... ";
+    printf("Generating textures... ");
     textureAtlasTex = generateTextures(151910774187927L);
 
-    std::cout << "Finished initializing engine! Onto the game.\n";
+    printf("Finished initializing engine! Onto the game.\n");
 }
 
 void collidePlayer()
@@ -194,15 +194,15 @@ void collidePlayer()
     for (int axis = 0; axis < 3; axis++) {
         bool moveValid = true;
 
-        const glm::vec3 newPlayerPos = glm::vec3(playerPos.x + playerVelocity.x * (axis == 0),
-                                                 playerPos.y + playerVelocity.y * (axis == 1),
-                                                 playerPos.z + playerVelocity.z * (axis == 2));
+        const vec3 newPlayerPos = vec3(playerPos.x + playerVelocity.x * (axis == 0),
+                                       playerPos.y + playerVelocity.y * (axis == 1),
+                                       playerPos.z + playerVelocity.z * (axis == 2));
 
         for (int colliderIndex = 0; colliderIndex < 12; colliderIndex++) {
             // magic
-            const glm::vec3 colliderBlockPos = glm::vec3((newPlayerPos.x + (colliderIndex       % 2) * 0.6f - 0.3f ),
-                                                         (newPlayerPos.y + (colliderIndex / 4   - 1) * 0.8f + 0.65f),
-                                                         (newPlayerPos.z + (colliderIndex / 2   % 2) * 0.6f - 0.3f ));
+            const vec3 colliderBlockPos = vec3((newPlayerPos.x + (colliderIndex       % 2) * 0.6f - 0.3f ),
+                                               (newPlayerPos.y + (colliderIndex / 4   - 1) * 0.8f + 0.65f),
+                                               (newPlayerPos.z + (colliderIndex / 2   % 2) * 0.6f - 0.3f ));
 
             if (colliderBlockPos.y < 0) // ignore collision above the world height limit
                 continue;
@@ -234,7 +234,7 @@ void collidePlayer()
         }
     }
 
-    //std::cout << playerPos << '\n';
+    //printf(playerPos << '\n');
 }
 
 void pollInputs(GLFWwindow* window);
@@ -263,8 +263,7 @@ void run(GLFWwindow* window) {
         lightDirection.x = lightDirection.y * 0.5f;
         lightDirection.z = cos(frameTime / 10000.0f);
 
-        lightDirection = glm::normalize(lightDirection);
-
+        lightDirection.normalize();
 
         if (lightDirection.y < 0.0f)
         {
@@ -300,7 +299,7 @@ void run(GLFWwindow* window) {
                 int magicZ = int(playerPos.z +       (colliderIndex >> 1  & 1) * 0.6F - 0.3F);
 
                 // set block to air if inside player
-                if (World::isWithinWorld(glm::vec3(magicX, magicY, magicZ)))
+                if (World::isWithinWorld(vec3(magicX, magicY, magicZ)))
                     World::setBlock(magicX, magicY, magicZ, BLOCK_AIR);
             }
 
@@ -309,7 +308,7 @@ void run(GLFWwindow* window) {
 
         //raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
 
-        //std::cout << hoveredBlockPos << "\n";
+        //printf(hoveredBlockPos << "\n");
 
 
         // Compute the raytracing!
@@ -514,18 +513,19 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 int main(const int argc, const char** argv)
 {
-    std::cout << "Initializing GLFW... ";
+    printf("Initializing GLFW... ");
 
     if (!glfwInit())
     {
         // Initialization failed
-        std::cout << "Failed to init GLFW!\n";
+        printf("Failed to init GLFW!\n");
+        fflush(stdout);
         return -1;
     }
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Creating window... ";
+    printf("Creating window... ");
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
@@ -544,14 +544,14 @@ int main(const int argc, const char** argv)
     if (!window)
     {
         // Window or OpenGL context creation failed
-        std::cout << "Failed to create window!\n";
+        printf("Failed to create window!\n");
         return -1;
     }
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Setting OpenGL context... ";
+    printf("Setting OpenGL context... ");
     glfwMakeContextCurrent(window);
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -559,15 +559,16 @@ int main(const int argc, const char** argv)
     // turn on VSync so we don't run at about a kjghpillion fps
     glfwSwapInterval(1);
 
-    std::cout << "Loading OpenGL functions... ";
+    printf("Loading OpenGL functions... ");
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
-        std::cout << "Failed to initialize GLAD!\n" << std::endl;
+        printf("Failed to initialize GLAD!\n");
+        fflush(stdout);
         return -1;
     }
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Configuring OpenGL... ";
+    printf("Configuring OpenGL... ");
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
     
@@ -581,9 +582,9 @@ int main(const int argc, const char** argv)
 
     glfwSetCursorPosCallback(window, mouse_callback);
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Building shaders... ";
+    printf("Building shaders... ");
     std::stringstream defines;
     defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
             << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
@@ -600,21 +601,21 @@ int main(const int argc, const char** argv)
     screenShader = Shader("screen", "screen");
     computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
 
-    std::cout << "Done!\n";
+    printf("Done!\n");
     
     glActiveTexture(GL_TEXTURE0);
 
-    std::cout << "Building buffers... ";
+    printf("Building buffers... ");
     initBuffers();
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Building render texture... ";
+    printf("Building render texture... ");
     initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
-    std::cout << "Done!\n";
+    printf("Done!\n");
 
-    std::cout << "Initializing engine...\n";
+    printf("Initializing engine...\n");
     init();
-    std::cout << "Finished initializing engine! Running the game...\n";
+    printf("Finished initializing engine! Running the game...\n");
 
     run(window);
 }

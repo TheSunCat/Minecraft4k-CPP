@@ -1,6 +1,8 @@
 #pragma once
+
 #include <cstdint>
-#include "include/glm/vec3.hpp"
+
+#include "Vector.h"
 
 //#define CLASSIC
 
@@ -45,14 +47,14 @@ constexpr float PLAYER_REACH = 5.0f;
 // COLORS
 
 // S = Sun, A = Amb, Y = skY
-constexpr glm::vec3 SC_DAY = glm::vec3(1);
-constexpr glm::vec3 AC_DAY = glm::vec3(0.5f, 0.5f, 0.5f);
-constexpr glm::vec3 YC_DAY = glm::vec3(0.317f, 0.729f, 0.969f);
+constexpr vec3 SC_DAY = vec3(1);
+constexpr vec3 AC_DAY = vec3(0.5f, 0.5f, 0.5f);
+constexpr vec3 YC_DAY = vec3(0.317f, 0.729f, 0.969f);
 
-constexpr glm::vec3 SC_TWILIGHT = glm::vec3(1, 0.5f, 0.01f);
-constexpr glm::vec3 AC_TWILIGHT = glm::vec3(0.6f, 0.5f, 0.5f);
-constexpr glm::vec3 YC_TWILIGHT = glm::vec3(0.27f, 0.24f, 0.33f);
+constexpr vec3 SC_TWILIGHT = vec3(1, 0.5f, 0.01f);
+constexpr vec3 AC_TWILIGHT = vec3(0.6f, 0.5f, 0.5f);
+constexpr vec3 YC_TWILIGHT = vec3(0.27f, 0.24f, 0.33f);
 
-constexpr glm::vec3 SC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
-constexpr glm::vec3 AC_NIGHT = glm::vec3(0.3f, 0.3f, 0.5f);
-constexpr glm::vec3 YC_NIGHT = glm::vec3(0.004f, 0.004f, 0.008f);
+constexpr vec3 SC_NIGHT = vec3(0.3f, 0.3f, 0.5f);
+constexpr vec3 AC_NIGHT = vec3(0.3f, 0.3f, 0.5f);
+constexpr vec3 YC_NIGHT = vec3(0.004f, 0.004f, 0.008f);

@@ -1,10 +1,9 @@
 #include "Util.h"
 
 #include <chrono>
-#include <complex>
-#include <iostream>
-#include <glm/geometric.hpp>
-#include <glm/trigonometric.hpp>
+#include <cmath>
+//#include <glm/geometric.hpp>
+//#include <glm/trigonometric.hpp>
 
 float currentTime()
 {
@@ -58,12 +57,12 @@ float Random::nextFloat()
     return float(next(24)) / float(1 << 24);
 }
 
-glm::vec2 Random::nextVec2(float magnitude)
+vec2 Random::nextVec2(float magnitude)
 {
     float x = nextFloat() * magnitude * 2.f;
     float y = nextFloat() * magnitude * 2.f;
 
-    return glm::vec2(x - magnitude, y - magnitude);
+    return vec2(x - magnitude, y - magnitude);
 }
 
 uint32_t Random::nextInt()
@@ -71,12 +70,12 @@ uint32_t Random::nextInt()
     return next(32);
 }
 
-glm::ivec2 Random::nextIVec2(int magnitude)
+vec2 Random::nextIVec2(int magnitude)
 {
     int x = nextInt(magnitude * 2);
     int y = nextInt(magnitude * 2);
 
-    return glm::ivec2(x - magnitude, y - magnitude);
+    return vec2(x - magnitude, y - magnitude);
 }
 
 uint32_t Random::nextInt(const uint32_t bound)
@@ -105,7 +104,7 @@ void Random::setSeed(const uint64_t newSeed)
 // Perlin noise
 
 float scaled_cosine(const float i) {
-    return 0.5f * (1.0f - std::cos(i * PI));
+    return 0.5f * (1.0f - cos(i * PI));
 }
 
 constexpr int PERLIN_RES = 1024;
@@ -184,7 +183,7 @@ float Perlin::noise(float x, float y) { // stolen from Processing
     return r;
 }
 
-float Perlin::noise(glm::vec2 pos)
+float Perlin::noise(vec2 pos)
 {
     return noise(pos.x, pos.y);
 }
@@ -193,7 +192,7 @@ float clamp(float val, const float min, const float max)
 {
     if (min >= max)
     {
-        std::cout << "Min (" << min << ") is not less than max (" << max << ")!" << std::endl;
+        printf("Min (%.2f) is not less than max (%.2f)!\n", min, max);
         return val;
     }
     
@@ -209,7 +208,7 @@ bool glError()
 {
     const GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
-        std::cerr << "OpenGL error " << err << std::endl;
+        printf("OpenGL error %i\n", err);
         return true;
     }
 
@@ -230,17 +229,50 @@ void GLAPIENTRY error_callback(GLenum source,
     //__debugbreak();
 }
 
-std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3)
+vec3 rotToVec3(const float yaw, const float pitch)
 {
-    os << vec3.x << ", " << vec3.y << ", " << vec3.z;
-    return os;
+    vec3 ret;
+    ret.x = cos(radians(yaw)) * (pitch == 0 ? 1 : cos(radians(pitch)));
+    ret.y = pitch == 0 ? 0 : sin(radians(pitch));
+    ret.z = sin(radians(yaw)) * (pitch == 0 ? 1 : cos(radians(pitch)));
+    return ret.normalized();
 }
 
-glm::vec3 rotToVec3(const float yaw, const float pitch)
+float radians(float deg)
 {
-    glm::vec3 ret;
-    ret.x = cos(glm::radians(yaw)) * (pitch == 0 ? 1 : cos(glm::radians(pitch)));
-    ret.y = pitch == 0 ? 0 : sin(glm::radians(pitch));
-    ret.z = sin(glm::radians(yaw)) * (pitch == 0 ? 1 : cos(glm::radians(pitch)));
-    return glm::normalize(ret);
+    return deg * (PI / 180.f);
+}
+
+float degrees(float rad)
+{
+    return rad / (PI / 180.f);
+}
+
+int sign(float v)
+{
+    return (0 < v) - (v < 0);
+}
+
+float fract(float v)
+{
+    return abs(v - int(v));
+}
+
+float maxf(float a, float b)
+{
+    return a > b ? a : b;
+}
+
+vec3 max(const vec3& a, const vec3& b)
+{
+    return vec3(
+        maxf(a.x, b.x),
+        maxf(a.y, b.y),
+        maxf(a.z, b.z)
+    );
+}
+
+float roundFloat(float v)
+{
+    return floor(v + 0.5f);
 }

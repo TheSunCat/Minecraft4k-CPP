@@ -1,9 +1,10 @@
 #pragma once
 
+#include <cstdio>
 #include <cstdint>
-#include <iostream>
 #include <glad/glad.h>
-#include <glm/glm.hpp>
+
+#include "Vector.h"
 
 constexpr float PI = 3.14159265359f;
 
@@ -33,12 +34,12 @@ public:
 
     float nextFloat();
 
-    glm::vec2 nextVec2(float magnitude);
+    vec2 nextVec2(float magnitude);
 
 
     uint32_t nextInt();
 
-    glm::ivec2 nextIVec2(int magnitude);
+    vec2 nextIVec2(int magnitude);
 
     uint32_t nextInt(uint32_t bound);
 
@@ -51,7 +52,7 @@ public:
 // It's just Perlin from Processing
 namespace Perlin
 {
-    float noise(glm::vec2 pos);
+    float noise(vec2 pos);
     float noise(float x, float y);
 }
 
@@ -67,6 +68,17 @@ void GLAPIENTRY error_callback(GLenum source,
     const GLchar* message,
     const void* userParam);
 
-std::ostream& operator<<(std::ostream& os, const glm::vec3& vec3);
+vec3 rotToVec3(float yaw, float pitch);
 
-glm::vec3 rotToVec3(float yaw, float pitch);
+float radians(float deg);
+float degrees(float rad);
+
+// why do I have to define these??
+/*
+float absf(float v);
+float maxf(float a, float b);*/
+float roundFloat(float v);
+int sign(float v);
+float fract(float v);
+
+vec3 max(const vec3& a, const vec3& b);

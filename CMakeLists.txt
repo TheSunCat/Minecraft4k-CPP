@@ -12,6 +12,7 @@ set(Header_Files
     "TextureGenerator.h"
     "Util.h"
     "World.h"
+    "Vector.h"
 )
 source_group("Header Files" FILES ${Header_Files})
 
@@ -29,6 +30,7 @@ set(Source_Files
     "TextureGenerator.cpp"
     "Util.cpp"
     "World.cpp"
+    "Vector.cpp"
 )
 source_group("Source Files" FILES ${Source_Files})
 
@@ -49,7 +51,7 @@ if(UNIX)
             -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
             -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
 	    -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
-	    -fcf-protection=none -N -fno-align-functions -fomit-frame-pointer
+	    -fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics -finline-limit=10
         )
 
     target_link_options(${PROJECT_NAME} PRIVATE

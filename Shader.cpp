@@ -2,11 +2,7 @@
 
 #include <cstring>
 #include <fstream>
-#include <iostream>
 #include <sstream>
-
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
 
 Shader::Shader(std::string vertexName, std::string fragmentName)
 {
@@ -23,7 +19,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     // read file buffer contents into streams, then into strings
     vShaderFile.open(vertexName);
     if(!vShaderFile.is_open()) {
-        std::cout << "Failed to read vertex shader \"" << vertexName << "\"." << std::endl;
+        printf("Failed to read vertex shader \"%s\".\n", vertexName);
         return;
     }
 
@@ -33,7 +29,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
 
     fShaderFile.open(fragmentName);
     if(!fShaderFile.is_open()) {
-        std::cout << "Failed to read fragment shader \"" << fragmentName << "\"." << std::endl;
+        printf("Failed to read fragment shader \"%s\".", fragmentName);
         return;
     }
 
@@ -60,7 +56,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        std::cout << "Failed to compile vertex shader \"" << vertexName << "\". Error log:\n" << infoLog << std::endl;
+        printf("Failed to compile vertex shader \"%s\". Error log:\n%s\n\n", vertexName, infoLog);
         return;
     }
     
@@ -73,7 +69,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        std::cout << "Failed to compile fragment shader \"" << fragmentName << "\". Error log:\n" << infoLog << std::endl;
+        printf("Failed to compile fragment shader \"%s\". Error log:\n%s\n\n", fragmentName, infoLog);
         return;
     }
 
@@ -90,7 +86,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        std::cout << "Failed to link shader \"" << vertexName << "\" & \"" << fragmentName << "\"! Error log:\n" << infoLog << std::endl;
+        printf("Failed to link shader \"%s\" & \"%s\"! Error log:\n%s\n\n", vertexName, fragmentName, infoLog);
         return;
     }
 
@@ -110,7 +106,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
 
     computeFile.open(computeName);
     if(!computeFile.is_open()) {
-        std::cout << "Failed to load compute shader \"" << computeName << "\"!" << std::endl;
+        printf("Failed to load compute shader \"%s\"!", computeName);
         return;
     }
 
@@ -137,7 +133,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     if (!success)
     {
         glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile compute shader \"" << computeName << "\"! Error log:\n" << infoLog << std::endl;
+        printf("Failed to compile compute shader \"%s\"! Error log:\n%s\n\n", computeName, infoLog);
         return;
     }
 
@@ -151,7 +147,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        std::cout << "Failed to link compute shader \"" << computeName << "\"! Error log:\n" << infoLog << std::endl;
+        printf("Failed to link compute shader \"%s\"! Error log:\n%s\n\n", computeName, infoLog);
         return;
     }
 
@@ -175,7 +171,7 @@ Shader::Shader(HasExtra, const std::string source)
     if (!success)
     {
         glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
-        std::cout << "Failed to compile compute shader \"default\"! Error log:\n" << infoLog << std::endl;
+        printf("Failed to compile compute shader \"default\"! Error log:\n%s\n\n", infoLog);
         return;
     }
 
@@ -189,7 +185,7 @@ Shader::Shader(HasExtra, const std::string source)
     if (!success)
     {
         glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
-        std::cout << "Failed to link compute shader \"default\"! Error log:\n" << infoLog << std::endl;
+        printf("Failed to link compute shader \"default\"! Error log:\n%s\n\n", infoLog);
         return;
     }
 
@@ -215,47 +211,47 @@ void Shader::setFloat(const std::string& name, const float value) const {
     glUniform1f(getUniformLocation(name.c_str()), value);
 }
 // ------------------------------------------------------------------------
-void Shader::setVec2(const std::string& name, const glm::vec2& value) const
+void Shader::setVec2(const std::string& name, const vec2& value) const
 {
-    glUniform2fv(getUniformLocation(name.c_str()), 1, &value[0]);
+    glUniform2fv(getUniformLocation(name.c_str()), 1, &value.x); // [0]
 }
 void Shader::setVec2(const std::string& name, const float x, const float y) const
 {
     glUniform2f(getUniformLocation(name.c_str()), x, y);
 }
 // ------------------------------------------------------------------------
-void Shader::setVec3(const std::string& name, const glm::vec3& value) const
+void Shader::setVec3(const std::string& name, const vec3& value) const
 {
-    glUniform3fv(getUniformLocation(name.c_str()), 1, &value[0]);
+    glUniform3fv(getUniformLocation(name.c_str()), 1, &value.x); // [0]
 }
 void Shader::setVec3(const std::string& name, const float x, const float y, const float z) const
 {
     glUniform3f(getUniformLocation(name.c_str()), x, y, z);
 }
 // ------------------------------------------------------------------------
-void Shader::setVec4(const std::string& name, const glm::vec4& value) const
-{
-    glUniform4fv(getUniformLocation(name.c_str()), 1, &value[0]);
-}
-void Shader::setVec4(const std::string& name, const float x, const float y, const float z, const float w) const
-{
-    glUniform4f(getUniformLocation(name.c_str()), x, y, z, w);
-}
+// void Shader::setVec4(const std::string& name, const vec4& value) const
+// {
+//     glUniform4fv(getUniformLocation(name.c_str()), 1, &value[0]);
+// }
+// void Shader::setVec4(const std::string& name, const float x, const float y, const float z, const float w) const
+// {
+//     glUniform4f(getUniformLocation(name.c_str()), x, y, z, w);
+// }
 // ------------------------------------------------------------------------
-void Shader::setMat2(const std::string& name, const glm::mat2& mat) const
-{
-    glUniformMatrix2fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
-}
-// ------------------------------------------------------------------------
-void Shader::setMat3(const std::string& name, const glm::mat3& mat) const
-{
-    glUniformMatrix3fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
-}
-// ------------------------------------------------------------------------
-void Shader::setMat4(const std::string& name, const glm::mat4& mat) const
-{
-    glUniformMatrix4fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
-}
+// void Shader::setMat2(const std::string& name, const mat2& mat) const
+// {
+//     glUniformMatrix2fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
+// }
+// // ------------------------------------------------------------------------
+// void Shader::setMat3(const std::string& name, const mat3& mat) const
+// {
+//     glUniformMatrix3fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
+// }
+// // ------------------------------------------------------------------------
+// void Shader::setMat4(const std::string& name, const mat4& mat) const
+// {
+//     glUniformMatrix4fv(getUniformLocation(name.c_str()), 1, GL_FALSE, &mat[0][0]);
+// }
 
 GLint Shader::getUniformLocation(const char* uniformName) const
 {
