@@ -44,6 +44,8 @@ set(ALL_FILES
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
+# for debugging
+# target_compile_options(${PROJECT_NAME} PRIVATE -g)
 
 if(UNIX)
     # TODO -m32, use C libs 
