@@ -86,4 +86,10 @@ vec3 max(const vec3& a, const vec3& b);
 
 unsigned int murmurHash2(const char* str, int len);
 
+/* reverse:  reverse string s in place */
+void reverse(char s[]);
+
+/* itoa:  convert n to characters in s */
+void itoa(int n, char s[]);
+
 #define PASS_STR(a) a, strlen(a)

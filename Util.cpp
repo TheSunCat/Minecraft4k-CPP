@@ -188,12 +188,6 @@ float Perlin::noise(vec2 pos)
 
 float clamp(float val, const float min, const float max)
 {
-    if (min >= max)
-    {
-        printf("Min (%.2f) is not less than max (%.2f)!\n", min, max);
-        return val;
-    }
-    
     if (val < min)
         val = min;
     else if (val > max)
@@ -206,7 +200,10 @@ bool glError()
 {
     const GLenum err = glGetError();
     if (err != GL_NO_ERROR) {
-        printf("OpenGL error %i\n", err);
+        char err_s[5];
+        itoa(err, err_s);
+
+        fputs("OpenGL error ", stdout); puts(err_s);
         return true;
     }
 
@@ -220,9 +217,7 @@ void GLAPIENTRY error_callback(GLenum source,
                 GLsizei length,
                 const GLchar* message,
                 const void* userParam) {
-    fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-        (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
-        type, severity, message);
+    fputs("GL error/warning: ", stdout); puts(message);
     
     //__debugbreak();
 }
@@ -322,4 +317,32 @@ unsigned int murmurHash2(const char* str, int len)
     h ^= h >> 15;
 
     return h;
+}
+
+void reverse(char s[])
+{
+    int i, j;
+    char c;
+
+    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
+        c = s[i];
+        s[i] = s[j];
+        s[j] = c;
+    }
+}
+
+void itoa(int n, char s[])
+{
+    int i, sign;
+
+    if ((sign = n) < 0)  /* record sign */
+        n = -n;          /* make n positive */
+    i = 0;
+    do {       /* generate digits in reverse order */
+        s[i++] = n % 10 + '0';   /* get next digit */
+    } while ((n /= 10) > 0);     /* delete it */
+    if (sign < 0)
+        s[i++] = '-';
+    s[i] = '\0';
+    reverse(s);
 }

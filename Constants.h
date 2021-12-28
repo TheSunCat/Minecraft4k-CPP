@@ -15,9 +15,9 @@ constexpr int WINDOW_WIDTH = 856;
 constexpr int WINDOW_HEIGHT = 480;
 
 #ifdef CLASSIC
-constexpr float RENDER_DIST = 20.0f;
+constexpr int RENDER_DIST = 20;
 #else
-constexpr float RENDER_DIST = 80.0f;
+constexpr int RENDER_DIST = 80;
 #endif
 
 

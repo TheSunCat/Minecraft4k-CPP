@@ -48,25 +48,28 @@ set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_
 #target_compile_options(${PROJECT_NAME} PRIVATE -g)
 
 if(UNIX)
-    # TODO -m32, use C libs 
+	# TODO -m32, use C libs 
     target_compile_options(${PROJECT_NAME} PRIVATE
-            -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
-            -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
-	    -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
-	    -fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
-	    -finline-limit=10 -fno-asynchronous-unwind-tables
-        )
+        -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
+        -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
+        -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
+    	-fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
+    	-finline-limit=10 -fno-asynchronous-unwind-tables
+    )
 
-    # TODO --nmagic
     target_link_options(${PROJECT_NAME} PRIVATE
-        -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048,-z,norelro,-z,now,--gc-sections
+        -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048
     )
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND strip -S --strip-unneeded --remove-section=.note.gnu.gold-version --remove-section=.comment --remove-section=.note --remove-section=.note.gnu.build-id --remove-section=.note.ABI-tag -R .note -R .comment -R .eh_frame -R .eh_frame_hdr -s ${PROJECT_NAME}
 	
 	COMMAND objcopy --remove-section .note.gnu.property --remove-section .gnu.version --remove-section .fini --remove-section .init_array --remove-section .got ${PROJECT_NAME}
-   )
+
+	COMMAND sstrip ${PROJECT_NAME}
+
+	COMMAND gzexe ${PROJECT_NAME}
+    )
 
 endif()
 
@@ -89,7 +92,7 @@ if(MSVC)
     target_link_options(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Debug>:
             /INCREMENTAL
-        >
+	    #   >
         $<$<CONFIG:Release>:
             /INCREMENTAL:NO
         >

@@ -19,7 +19,7 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     // read file contents with jank C functions (owwww)
     vShaderFile = fopen(vertexFullName, "r");
     if(!vShaderFile) {
-        printf("Failed to read vertex shader \"%s\".\n", vertexFullName);
+        fputs("\n\nERROR: Failed to read vertex shader \"", stdout); fputs(vertexFullName, stdout); fputs("\"!\n\n", stdout);
         return;
     }
 
@@ -38,7 +38,7 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
 
     fShaderFile = fopen(fragmentFullName, "r");
     if(!fShaderFile) {
-        printf("Failed to read fragment shader \"%s\".\n", fragmentFullName);
+        fputs("\n\nERROR: Failed to read fragment shader \"", stdout); fputs(fragmentFullName, stdout); fputs("\"!\n\n", stdout);
         return;
     }
 
@@ -71,7 +71,8 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        printf("Failed to compile vertex shader \"%s\". Error log:\n%s\n\n", vertexFullName, infoLog);
+        fputs("\n\nERROR: Failed to compile vertex shader \"", stdout); fputs(vertexFullName, stdout);
+        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
         return;
     }
     
@@ -84,7 +85,8 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        printf("Failed to compile fragment shader \"%s\". Error log:\n%s\n\n", fragmentFullName, infoLog);
+        fputs("\n\nERROR: Failed to compile fragment shader \"", stdout); fputs(fragmentFullName, stdout);
+        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
         return;
     }
 
@@ -101,7 +103,9 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        printf("Failed to link shader \"%s\" & \"%s\"! Error log:\n%s\n\n", vertexFullName, fragmentFullName, infoLog);
+        fputs("\n\nERROR: Failed to link shaders \"", stdout); fputs(vertexFullName, stdout);
+        fputs("\" & \"", stdout); fputs(fragmentFullName, stdout);
+        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
         return;
     }
 
@@ -122,7 +126,7 @@ Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
     FILE* computeFile;
     computeFile = fopen(computeFullName, "r");
     if(!computeFile) {
-        printf("Failed to read compute shader \"%s\".\n", computeFullName);
+        fputs("\n\nERROR: Failed to read compute shader file \"", stdout); fputs(computeFullName, stdout); fputs("!\n\n", stdout);
         return;
     }
 
@@ -168,7 +172,8 @@ Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
     if (!success)
     {
         glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
-        printf("Failed to compile compute shader \"%s\"! Error log:\n%s\n\n", computeFullName, infoLog);
+        fputs("\n\nERROR: Failed to compile compute shader \"", stdout); fputs(computeFullName, stdout);
+        fputs("! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
         return;
     }
 
@@ -182,7 +187,8 @@ Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        printf("Failed to link compute shader \"%s\"! Error log:\n%s\n\n", computeFullName, infoLog);
+        fputs("\n\nERROR: Failed to link compute shader \"", stdout); fputs(computeFullName, stdout);
+        fputs("! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
         return;
     }
 
@@ -263,6 +269,6 @@ GLint Shader::getUniformLocation(const char* uniformName, int len) const
             return loc;
     }
 
-    printf("ERROR: Can't find uniform %s\n", uniformName);
+    fputs("ERROR: Can't find uniform ", stdout); puts(uniformName);
     return 0;
 }

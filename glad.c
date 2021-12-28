@@ -19,7 +19,6 @@
         https://glad.dav1d.de/#profile=compatibility&language=c&specification=gl&loader=on&api=gl%3D4.3
 */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <glad/glad.h>
@@ -257,22 +256,22 @@ static int has_ext(const char *ext) {
 
     return 0;
 }
-int GLAD_GL_VERSION_1_0 = 0;
-int GLAD_GL_VERSION_1_1 = 0;
-int GLAD_GL_VERSION_1_2 = 0;
-int GLAD_GL_VERSION_1_3 = 0;
-int GLAD_GL_VERSION_1_4 = 0;
-int GLAD_GL_VERSION_1_5 = 0;
-int GLAD_GL_VERSION_2_0 = 0;
-int GLAD_GL_VERSION_2_1 = 0;
-int GLAD_GL_VERSION_3_0 = 0;
-int GLAD_GL_VERSION_3_1 = 0;
-int GLAD_GL_VERSION_3_2 = 0;
-int GLAD_GL_VERSION_3_3 = 0;
-int GLAD_GL_VERSION_4_0 = 0;
-int GLAD_GL_VERSION_4_1 = 0;
-int GLAD_GL_VERSION_4_2 = 0;
-int GLAD_GL_VERSION_4_3 = 0;
+int GLAD_GL_VERSION_1_0 = 1;
+int GLAD_GL_VERSION_1_1 = 1;
+int GLAD_GL_VERSION_1_2 = 1;
+int GLAD_GL_VERSION_1_3 = 1;
+int GLAD_GL_VERSION_1_4 = 1;
+int GLAD_GL_VERSION_1_5 = 1;
+int GLAD_GL_VERSION_2_0 = 1;
+int GLAD_GL_VERSION_2_1 = 1;
+int GLAD_GL_VERSION_3_0 = 1;
+int GLAD_GL_VERSION_3_1 = 1;
+int GLAD_GL_VERSION_3_2 = 1;
+int GLAD_GL_VERSION_3_3 = 1;
+int GLAD_GL_VERSION_4_0 = 1;
+int GLAD_GL_VERSION_4_1 = 1;
+int GLAD_GL_VERSION_4_2 = 1;
+int GLAD_GL_VERSION_4_3 = 1;
 PFNGLACCUMPROC glad_glAccum = NULL;
 PFNGLACTIVESHADERPROGRAMPROC glad_glActiveShaderProgram = NULL;
 PFNGLACTIVETEXTUREPROC glad_glActiveTexture = NULL;
@@ -1308,63 +1307,9 @@ static int find_extensionsGL(void) {
 	return 1;
 }
 
-// TODO can optimize this since we know we want 4.3
 static void find_coreGL(void) {
-
-    /* Thank you @elmindreda
-     * https://github.com/elmindreda/greg/blob/master/templates/greg.c.in#L176
-     * https://github.com/glfw/glfw/blob/master/src/context.c#L36
-     */
-    int i, major, minor;
-
-    const char* version;
-    const char* prefixes[] = {
-        "OpenGL ES-CM ",
-        "OpenGL ES-CL ",
-        "OpenGL ES ",
-        NULL
-    };
-
-    version = (const char*) glGetString(GL_VERSION);
-    if (!version) return;
-
-    for (i = 0;  prefixes[i];  i++) {
-        const size_t length = strlen(prefixes[i]);
-        if (strncmp(version, prefixes[i], length) == 0) {
-            version += length;
-            break;
-        }
-    }
-
-/* PR #18 */
-#ifdef _MSC_VER
-    sscanf_s(version, "%d.%d", &major, &minor);
-#else
-    sscanf(version, "%d.%d", &major, &minor);
-#endif
-
-    GLVersion.major = major; GLVersion.minor = minor;
-    max_loaded_major = major; max_loaded_minor = minor;
-	GLAD_GL_VERSION_1_0 = (major == 1 && minor >= 0) || major > 1;
-	GLAD_GL_VERSION_1_1 = (major == 1 && minor >= 1) || major > 1;
-	GLAD_GL_VERSION_1_2 = (major == 1 && minor >= 2) || major > 1;
-	GLAD_GL_VERSION_1_3 = (major == 1 && minor >= 3) || major > 1;
-	GLAD_GL_VERSION_1_4 = (major == 1 && minor >= 4) || major > 1;
-	GLAD_GL_VERSION_1_5 = (major == 1 && minor >= 5) || major > 1;
-	GLAD_GL_VERSION_2_0 = (major == 2 && minor >= 0) || major > 2;
-	GLAD_GL_VERSION_2_1 = (major == 2 && minor >= 1) || major > 2;
-	GLAD_GL_VERSION_3_0 = (major == 3 && minor >= 0) || major > 3;
-	GLAD_GL_VERSION_3_1 = (major == 3 && minor >= 1) || major > 3;
-	GLAD_GL_VERSION_3_2 = (major == 3 && minor >= 2) || major > 3;
-	GLAD_GL_VERSION_3_3 = (major == 3 && minor >= 3) || major > 3;
-	GLAD_GL_VERSION_4_0 = (major == 4 && minor >= 0) || major > 4;
-	GLAD_GL_VERSION_4_1 = (major == 4 && minor >= 1) || major > 4;
-	GLAD_GL_VERSION_4_2 = (major == 4 && minor >= 2) || major > 4;
-	GLAD_GL_VERSION_4_3 = (major == 4 && minor >= 3) || major > 4;
-	if (GLVersion.major > 4 || (GLVersion.major >= 4 && GLVersion.minor >= 3)) {
-		max_loaded_major = 4;
-		max_loaded_minor = 3;
-	}
+    // we already assume GL is 4.3 (potentially risky but gotta do it)
+    GLVersion.major = 4; GLVersion.minor = 3;
 }
 
 int gladLoadGLLoader(GLADloadproc load) {

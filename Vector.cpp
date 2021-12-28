@@ -157,7 +157,6 @@ float vec3::operator[](int axis)
     case 2:
         return z;
     default:
-        printf("Invalid axis %i! Returning 0...\n", axis);
         return 0;
     }
 }
