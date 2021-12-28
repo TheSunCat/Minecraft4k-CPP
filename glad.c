@@ -97,6 +97,8 @@ int open_gl(void) {
     static const char *NAMES[] = {"libGL.so.1", "libGL.so"};
 #endif
 
+    // TODO remove dlopen/dlclose so I can use -n linker flag
+
     unsigned int index = 0;
     for(index = 0; index < (sizeof(NAMES) / sizeof(NAMES[0])); index++) {
         libGL = dlopen(NAMES[index], RTLD_NOW | RTLD_GLOBAL);
@@ -1244,7 +1246,7 @@ static void load_GL_VERSION_2_0(GLADloadproc load) {
 	glad_glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)load("glGetProgramInfoLog");
 	glad_glGetShaderiv = (PFNGLGETSHADERIVPROC)load("glGetShaderiv");
 	glad_glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)load("glGetShaderInfoLog");
-	glad_glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)load("glGetUniformLocation");
+	glad_glGetActiveUniform = (PFNGLGETACTIVEUNIFORMPROC)load("glGetActiveUniform");
 	glad_glLinkProgram = (PFNGLLINKPROGRAMPROC)load("glLinkProgram");
 	glad_glShaderSource = (PFNGLSHADERSOURCEPROC)load("glShaderSource");
 	glad_glUseProgram = (PFNGLUSEPROGRAMPROC)load("glUseProgram");
@@ -1306,6 +1308,7 @@ static int find_extensionsGL(void) {
 	return 1;
 }
 
+// TODO can optimize this since we know we want 4.3
 static void find_coreGL(void) {
 
     /* Thank you @elmindreda

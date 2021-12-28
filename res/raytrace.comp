@@ -23,7 +23,7 @@ struct Camera
     float sinPitch;
     vec2 frustumDiv;
 };
-uniform Camera camera;
+uniform Camera cam;
 
 uniform vec2 screenSize;
 
@@ -203,14 +203,14 @@ vec3 rayMarch(in vec3 start, in vec3 velocity, in float maximum, in vec3 fogColo
 
 vec3 getPixel(in vec2 pixel_coords)
 {
-    const vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / camera.frustumDiv;
+    const vec2 frustumRay = (pixel_coords - (0.5 * screenSize)) / cam.frustumDiv;
 
     // rotate frustum space to world space
-    const float temp = camera.cosPitch + frustumRay.y * camera.sinPitch;
+    const float temp = cam.cosPitch + frustumRay.y * cam.sinPitch;
     
-    vec3 rayDir = normalize(vec3(frustumRay.x * camera.cosYaw + temp * camera.sinYaw,
-                                 frustumRay.y * camera.cosPitch - camera.sinPitch,
-                                 temp * camera.cosYaw - frustumRay.x * camera.sinYaw));
+    vec3 rayDir = normalize(vec3(frustumRay.x * cam.cosYaw + temp * cam.sinYaw,
+                                 frustumRay.y * cam.cosPitch - cam.sinPitch,
+                                 temp * cam.cosYaw - frustumRay.x * cam.sinYaw));
 
 
     const vec3 fogColor = mix(skyColor, sunColor, 0.5 * pow(clamp(dot(rayDir, lightDirection), 0, 1) + 0.2, 5));
@@ -219,7 +219,7 @@ vec3 getPixel(in vec2 pixel_coords)
     vec3 hitPos;
     bool hit;
     float hitDist;
-    vec3 color = rayMarch(camera.pos, rayDir, RENDER_DIST, fogColor, hit, hitPos, hitDist);
+    vec3 color = rayMarch(cam.pos, rayDir, RENDER_DIST, fogColor, hit, hitPos, hitDist);
 
 #ifndef CLASSIC
     if(hit)

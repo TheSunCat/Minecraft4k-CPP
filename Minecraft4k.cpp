@@ -1,7 +1,4 @@
 #include <cmath>
-#include <sstream>
-#include <string>
-#include <thread>
 
 #ifdef __unix__
 #include <unistd.h>
@@ -103,42 +100,43 @@ void updateScreenResolution(GLFWwindow* window)
     SCR_RES.y = 60 * pow(2, SCR_DETAIL);
 
 
-    std::string title = "Minecraft4k";
+    char* title = new char[32];
+    strcpy(title, "Minecraft4k");
 
     switch (SCR_DETAIL) {
     case -4:
-        title += " on battery-saving mode";
+        strcat(title, " on battery-saving mode");
         break;
     case -3:
-        title += " on a potato";
+        strcat(title, " on a potato");
         break;
     case -2:
-        title += " on an undocked switch";
+        strcat(title, " on an undocked switch");
         break;
     case -1:
-        title += " on a TI-84";
+        strcat(title, " on a TI-84");
         break;
     case 0:
-        title += " on an Atari 2600";
+        strcat(title, " on an Atari 2600");
         break;
     case 2:
-        title += " at SD";
+        strcat(title, " at SD");
         break;
     case 3:
-        title += " at HD";
+        strcat(title, " at HD");
         break;
     case 4:
-        title += " at Full HD";
+        strcat(title, " at Full HD");
         break;
     case 5:
-        title += " at 4K";
+        strcat(title, " at 4K");
         break;
     case 6:
-        title += " on a NASA supercomputer";
+        strcat(title, " on a NASA supercomputer");
         break;
     }
 
-    glfwSetWindowTitle(window, title.c_str());
+    glfwSetWindowTitle(window, title);
 
     glDeleteTextures(1, &screenTexture);
     initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
@@ -324,25 +322,25 @@ void run(GLFWwindow* window) {
         computeShader.use();
 
         glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-        computeShader.setVec2("screenSize", SCR_RES.x, SCR_RES.y);
+        computeShader.setVec2(PASS_STR("screenSize"), SCR_RES.x, SCR_RES.y);
 
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-        computeShader.setInt("textureAtlas", 0);
+        computeShader.setInt(PASS_STR("textureAtlas"), 0);
 
-        computeShader.setFloat("camera.cosYaw", cos(cameraYaw));
-        computeShader.setFloat("camera.cosPitch", cos(cameraPitch));
-        computeShader.setFloat("camera.sinYaw", sin(cameraYaw));
-        computeShader.setFloat("camera.sinPitch", sin(cameraPitch));
-        computeShader.setVec2("camera.frustumDiv", frustumDiv);
-        computeShader.setVec3("camera.pos", playerPos);
+        computeShader.setFloat(PASS_STR("cam.cosYaw"), cos(cameraYaw));
+        computeShader.setFloat(PASS_STR("cam.cosPitch"), cos(cameraPitch));
+        computeShader.setFloat(PASS_STR("cam.sinYaw"), sin(cameraYaw));
+        computeShader.setFloat(PASS_STR("cam.sinPitch"), sin(cameraPitch));
+        computeShader.setVec2(PASS_STR("cam.frustumDiv"), frustumDiv);
+        computeShader.setVec3(PASS_STR("cam.pos"), playerPos);
 
 #ifdef CLASSIC
 
 #else
-        computeShader.setVec3("lightDirection", lightDirection);
-        computeShader.setVec3("skyColor", skyColor);
-        computeShader.setVec3("ambColor", ambColor);
-        computeShader.setVec3("sunColor", sunColor);
+        computeShader.setVec3(PASS_STR("lightDirection"), lightDirection);
+        computeShader.setVec3(PASS_STR("skyColor"), skyColor);
+        computeShader.setVec3(PASS_STR("ambColor"), ambColor);
+        computeShader.setVec3(PASS_STR("sunColor"), sunColor);
 #endif
 
         //computeShader.setVec3("fogColor", skyColor);
@@ -424,31 +422,43 @@ bool keyDown(GLFWwindow* window, int key)
     return glfwGetKey(window, key) == GLFW_PRESS;
 }
 
+// TODO this ain't working
+struct KeyEntry {
+    int keyID;
+    float keyTime;
+};
 
-std::unordered_map<int, float> keyHistory;
+std::vector<KeyEntry> keyHistory;
 bool keyPress(GLFWwindow* window, int key)
 {
     int pressState = glfwGetKey(window, key);
 
-    auto loc = keyHistory.find(key);
+    bool keyInHistory = false;
+    int loc = 0;
+    for(; loc++; loc < keyHistory.size()) {
+        if(keyHistory[loc].keyID == key) {
+            keyInHistory = true;
+            break;
+        }
+    }
 
     if(pressState == GLFW_PRESS)
     {
-        if (loc == keyHistory.end()) { // not in history, this is first key press
-            keyHistory.insert(std::make_pair(key, currentTime()));
+        if (!keyInHistory) { // not in history, this is first key press
+            keyHistory.push_back({key, currentTime()});
 
             return true;
         }
 
         auto time = currentTime();
-        if (time - loc->second > 500) // repeat key press after 500ms
+        if (time - keyHistory[loc].keyTime > 500) // repeat key press after 500ms
             return true;
         else
             return false;
     }
 
-    if (loc != keyHistory.end()) // key released, so clear from history
-        keyHistory.erase(loc);
+    if (keyInHistory) // key released, so clear from history
+        keyHistory.erase(keyHistory.begin() + loc);
 
     return false;
 }
@@ -596,21 +606,29 @@ int main(const int argc, const char** argv)
     printf("Done!\n");
 
     printf("Building shaders... ");
-    std::stringstream defines;
-    defines << "#define WORLD_SIZE " << WORLD_SIZE << "\n"
-            << "#define WORLD_HEIGHT " << WORLD_HEIGHT << "\n"
-            << "#define TEXTURE_RES " << TEXTURE_RES << "\n"
-            << "#define RENDER_DIST " << RENDER_DIST << "\n";
+    char* numberBuf = new char[8];
+
+    char* defines = new char[256];
+    strcpy(defines, "#define WORLD_SIZE ");
+    sprintf(numberBuf, "%i", WORLD_SIZE); strcat(defines, numberBuf);
+    strcat(defines, "\n#define WORLD_HEIGHT ");
+    sprintf(numberBuf, "%i", WORLD_HEIGHT); strcat(defines, numberBuf);
+    strcat(defines, "\n#define TEXTURE_RES ");
+    sprintf(numberBuf, "%i", TEXTURE_RES); strcat(defines, numberBuf);
+    strcat(defines, "\n#define RENDER_DIST ");
+    sprintf(numberBuf, "%.2f", RENDER_DIST); strcat(defines, numberBuf);
+    
 #ifdef CLASSIC
-    defines << "#define CLASSIC\n";
+    defines << "\n#define CLASSIC";
 #endif
 
-    defines << "layout(local_size_x = " << WORK_GROUP_SIZE << ", local_size_y = " << WORK_GROUP_SIZE << ") in;";
-
-    const std::string definesStr = defines.str();
+    strcat(defines, "\nlayout(local_size_x = ");
+    sprintf(numberBuf, "%i", WORK_GROUP_SIZE); strcat(defines, numberBuf);
+    strcat(defines, ", local_size_y = "); strcat(defines, numberBuf);
+    strcat(defines, ") in;\n");
 
     screenShader = Shader("screen", "screen");
-    computeShader = Shader("raytrace", HasExtra::Yes, definesStr.c_str());
+    computeShader = Shader("raytrace", true, defines);
 
     printf("Done!\n");
     

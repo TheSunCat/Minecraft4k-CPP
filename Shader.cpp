@@ -1,44 +1,59 @@
 #include "Shader.h"
 
 #include <cstring>
-#include <fstream>
-#include <sstream>
+#include <cstdio>
 
-Shader::Shader(std::string vertexName, std::string fragmentName)
+#include "Util.h"
+
+Shader::Shader(const char* vertexName, const char* fragmentName)
 {
-    vertexName = "res/" + vertexName + ".vert";
-    fragmentName = "res/" + fragmentName + ".frag";
+    char vertexFullName[32] = "res/";
+    char fragmentFullName[32] = "res/";
 
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
+    strcat(vertexFullName, vertexName); strcat(vertexFullName, ".vert");
+    strcat(fragmentFullName, fragmentName); strcat(fragmentFullName, ".frag");
 
-    std::stringstream vShaderStream, fShaderStream;
+    FILE* vShaderFile;
+    FILE* fShaderFile;
     
-    // read file buffer contents into streams, then into strings
-    vShaderFile.open(vertexName);
-    if(!vShaderFile.is_open()) {
-        printf("Failed to read vertex shader \"%s\".\n", vertexName);
+    // read file contents with jank C functions (owwww)
+    vShaderFile = fopen(vertexFullName, "r");
+    if(!vShaderFile) {
+        printf("Failed to read vertex shader \"%s\".\n", vertexFullName);
         return;
     }
 
-    vShaderStream << vShaderFile.rdbuf();
-    vShaderFile.close();
-    vertexCode = vShaderStream.str();
+    fseek(vShaderFile, 0L, SEEK_END);
+    int vShaderSize = ftell(vShaderFile);
+    fseek(vShaderFile, 0L, SEEK_SET);
 
-    fShaderFile.open(fragmentName);
-    if(!fShaderFile.is_open()) {
-        printf("Failed to read fragment shader \"%s\".", fragmentName);
+    char* vertexSource = new char[vShaderSize + 1];
+    for(int pos = 0; pos < vShaderSize; pos++)
+    {
+        vertexSource[pos] = getc(vShaderFile);
+    }
+    vertexSource[vShaderSize] = '\0'; // null-terminate 
+
+    fclose(vShaderFile);
+
+    fShaderFile = fopen(fragmentFullName, "r");
+    if(!fShaderFile) {
+        printf("Failed to read fragment shader \"%s\".\n", fragmentFullName);
         return;
     }
 
-    fShaderStream << fShaderFile.rdbuf();
-    fShaderFile.close();
-    fragmentCode = fShaderStream.str();
+    fseek(fShaderFile, 0L, SEEK_END);
+    int fShaderSize = ftell(fShaderFile);
+    fseek(fShaderFile, 0L, SEEK_SET);
 
-    const char* vShaderCode = vertexCode.c_str();
-    const char* fShaderCode = fragmentCode.c_str();
+    char* fragmentSource = new char[fShaderSize + 1];
+    for(int pos = 0; pos < fShaderSize; pos++)
+    {
+        fragmentSource[pos] = getc(fShaderFile);
+    }
+    fragmentSource[fShaderSize] = '\0'; // null-terminate 
+
+    fclose(fShaderFile);
 
 
     // compile
@@ -48,7 +63,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
 
     
     vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vShaderCode, nullptr);
+    glShaderSource(vertex, 1, &vertexSource, nullptr);
     glCompileShader(vertex);
     
     // catch compile errors
@@ -56,12 +71,12 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        printf("Failed to compile vertex shader \"%s\". Error log:\n%s\n\n", vertexName, infoLog);
+        printf("Failed to compile vertex shader \"%s\". Error log:\n%s\n\n", vertexFullName, infoLog);
         return;
     }
     
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &fShaderCode, nullptr);
+    glShaderSource(fragment, 1, &fragmentSource, nullptr);
     glCompileShader(fragment);
     
     // catch compile errors
@@ -69,7 +84,7 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        printf("Failed to compile fragment shader \"%s\". Error log:\n%s\n\n", fragmentName, infoLog);
+        printf("Failed to compile fragment shader \"%s\". Error log:\n%s\n\n", fragmentFullName, infoLog);
         return;
     }
 
@@ -86,42 +101,62 @@ Shader::Shader(std::string vertexName, std::string fragmentName)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        printf("Failed to link shader \"%s\" & \"%s\"! Error log:\n%s\n\n", vertexName, fragmentName, infoLog);
+        printf("Failed to link shader \"%s\" & \"%s\"! Error log:\n%s\n\n", vertexFullName, fragmentFullName, infoLog);
         return;
     }
 
     // delete the shaders as they're linked into our program now and no longer necessary
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+
+    cacheUniforms();
 }
 
-Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode)
+Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
 {
-    computeName = "res/" + computeName + ".comp";
+    int extraLength = strlen(extraCode);
 
-    std::string computeCode;
-    std::ifstream computeFile;
+    char computeFullName[32] = "res/";
+    strcat(computeFullName, computeName); strcat(computeFullName, ".comp");
 
-    std::stringstream computeStream;
-
-    computeFile.open(computeName);
-    if(!computeFile.is_open()) {
-        printf("Failed to load compute shader \"%s\"!", computeName);
+    FILE* computeFile;
+    computeFile = fopen(computeFullName, "r");
+    if(!computeFile) {
+        printf("Failed to read compute shader \"%s\".\n", computeFullName);
         return;
     }
 
-    computeStream << computeFile.rdbuf();
-    computeFile.close();
-    computeCode = computeStream.str();
+    fseek(computeFile, 0L, SEEK_END);
+    int cShaderFileSize = ftell(computeFile);
+    fseek(computeFile, 0L, SEEK_SET);
 
-    
+    // also allocate space for extraCode
+    char* computeSource = new char[cShaderFileSize + extraLength + 1]; // for null terminate
+    for(int pos = 0; pos < cShaderFileSize; pos++)
+    {
+        computeSource[pos] = getc(computeFile);
+    }
+    computeSource[cShaderFileSize] = '\0'; // null-terminate 
 
-    if(hasExtra == HasExtra::Yes)
-        computeCode.insert(strlen("#version 430\n"), extraCode);
+    fclose(computeFile);
+
+    if(hasExtra)
+    { // augh gotta insert into C string
+        int startLength = strlen("#version 430\n");
+        int tailLength = cShaderFileSize + 1 - startLength;
+
+        char* tail = new char[tailLength];
+        strcpy(tail, computeSource + startLength);
+
+        strcpy(computeSource + startLength, extraCode);
+
+        strcpy(computeSource + startLength + extraLength, tail);
+    }
+
+    computeSource[cShaderFileSize + extraLength] = '\0'; // null-terminate jic
 
     const GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
 
-    char const* computeSource = computeCode.c_str();
     glShaderSource(computeShader, 1, &computeSource, nullptr);
     glCompileShader(computeShader);
 
@@ -133,7 +168,7 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     if (!success)
     {
         glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
-        printf("Failed to compile compute shader \"%s\"! Error log:\n%s\n\n", computeName, infoLog);
+        printf("Failed to compile compute shader \"%s\"! Error log:\n%s\n\n", computeFullName, infoLog);
         return;
     }
 
@@ -147,50 +182,14 @@ Shader::Shader(std::string computeName, HasExtra hasExtra, const char* extraCode
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        printf("Failed to link compute shader \"%s\"! Error log:\n%s\n\n", computeName, infoLog);
+        printf("Failed to link compute shader \"%s\"! Error log:\n%s\n\n", computeFullName, infoLog);
         return;
     }
 
     glDetachShader(ID, computeShader);
     glDeleteShader(computeShader);
-}
 
-Shader::Shader(HasExtra, const std::string source)
-{
-    const GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
-
-    char const* computeSource = source.c_str();
-    glShaderSource(computeShader, 1, &computeSource, nullptr);
-    glCompileShader(computeShader);
-
-    // catch errors
-    int success;
-    char infoLog[512];
-
-    glGetShaderiv(computeShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
-        printf("Failed to compile compute shader \"default\"! Error log:\n%s\n\n", infoLog);
-        return;
-    }
-
-    // link the program
-    ID = glCreateProgram();
-    glAttachShader(ID, computeShader);
-    glLinkProgram(ID);
-
-    // catch errors
-    glGetProgramiv(ID, GL_LINK_STATUS, &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(computeShader, 512, nullptr, infoLog);
-        printf("Failed to link compute shader \"default\"! Error log:\n%s\n\n", infoLog);
-        return;
-    }
-
-    glDetachShader(ID, computeShader);
-    glDeleteShader(computeShader);
+    cacheUniforms();
 }
 
 // use/activate the shader
@@ -199,53 +198,71 @@ void Shader::use() const {
 }
 
 // utility uniform functions
-void Shader::setBool(const std::string& name, const bool value) const {
-    glUniform1i(getUniformLocation(name.c_str()), int(value));
+void Shader::setBool(const char* name, int len, const bool value) const {
+    glUniform1i(getUniformLocation(name, len), int(value));
 }
 // ------------------------------------------------------------------------
-void Shader::setInt(const std::string& name, const int value) const {
-    glUniform1i(getUniformLocation(name.c_str()), value);
+void Shader::setInt(const char* name, int len, const int value) const {
+    glUniform1i(getUniformLocation(name, len), value);
 }
 // ------------------------------------------------------------------------
-void Shader::setFloat(const std::string& name, const float value) const {
-    glUniform1f(getUniformLocation(name.c_str()), value);
+void Shader::setFloat(const char* name, int len, const float value) const {
+    glUniform1f(getUniformLocation(name, len), value);
 }
 // ------------------------------------------------------------------------
-void Shader::setVec2(const std::string& name, const vec2& value) const
+void Shader::setVec2(const char* name, int len, const vec2& value) const
 {
-    glUniform2f(getUniformLocation(name.c_str()), value.x, value.y);
+    glUniform2f(getUniformLocation(name, len), value.x, value.y);
 }
-void Shader::setVec2(const std::string& name, const float x, const float y) const
+void Shader::setVec2(const char* name, int len, const float x, const float y) const
 {
-    glUniform2f(getUniformLocation(name.c_str()), x, y);
+    glUniform2f(getUniformLocation(name, len), x, y);
 }
 // ------------------------------------------------------------------------
-void Shader::setVec3(const std::string& name, const vec3& value) const
+void Shader::setVec3(const char* name, int len, const vec3& value) const
 {
-    glUniform3f(getUniformLocation(name.c_str()), value.x, value.y, value.z);
+    glUniform3f(getUniformLocation(name, len), value.x, value.y, value.z);
 }
-void Shader::setVec3(const std::string& name, const float x, const float y, const float z) const
+void Shader::setVec3(const char* name, int len, const float x, const float y, const float z) const
 {
-    glUniform3f(getUniformLocation(name.c_str()), x, y, z);
+    glUniform3f(getUniformLocation(name, len), x, y, z);
 }
 
-// ------------------------------------------------------------------------
-GLint Shader::getUniformLocation(const char* uniformName) const
+void Shader::cacheUniforms()
 {
-    const auto f = uniformCache.find(uniformName);
+    GLint i;
+    GLint count; // uniform count
 
-    GLint loc;
+    GLint size; // size of the variable
+    GLenum type; // type of the variable (float, vec3 or mat4, etc)
 
-    if (f == uniformCache.end()) { // get uniform location
-        loc = glGetUniformLocation(ID, uniformName);
+    const GLsizei bufSize = 16; // maximum name length
+    GLchar name[bufSize]; // variable name in GLSL
+    GLsizei length; // name length
 
-        std::pair<std::string, GLuint> newLoc(uniformName, loc);
-        uniformCache.insert(newLoc);
-    }
-    else
+    glGetProgramiv(ID, GL_ACTIVE_UNIFORMS, &count);
+    //uniformCache.reserve(count);
+
+    for (i = 0; i < count; i++)
     {
-        loc = (*f).second;
+        glGetActiveUniform(ID, (GLuint)i, bufSize, &length, &size, &type, name);
+
+        uniformCache.push_back(murmurHash2(name, length));
+    }
+}
+
+GLint Shader::getUniformLocation(const char* uniformName, int len) const
+{
+    unsigned int hash = murmurHash2(uniformName, len);
+
+    int loc = 0;
+
+    for(int loc = 0; loc < uniformCache.size(); loc++)
+    {
+        if(uniformCache[loc] == hash)
+            return loc;
     }
 
-    return loc;
+    printf("ERROR: Can't find uniform %s\n", uniformName);
+    return 0;
 }

@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 #include <glad/glad.h>
 
 #include "Vector.h"
@@ -78,7 +79,11 @@ float degrees(float rad);
 float absf(float v);
 float maxf(float a, float b);*/
 float roundFloat(float v);
-int sign(float v);
+bool sign(float v);
 float fract(float v);
 
 vec3 max(const vec3& a, const vec3& b);
+
+unsigned int murmurHash2(const char* str, int len);
+
+#define PASS_STR(a) a, strlen(a)

@@ -1,13 +1,9 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
-
 #include <glad/glad.h>
+#include <vector>
 
 #include "Vector.h"
-
-enum class HasExtra {Yes, No};
 
 class Shader {
 public:
@@ -15,38 +11,28 @@ public:
 
     Shader() = default;
 
-    Shader(std::string vertexName, std::string fragmentName);
+    Shader(const char* vertexName, const char* fragmentName);
 
-    Shader(std::string computeName, HasExtra hasExtra, const char* extraCode = "");
-
-    Shader(HasExtra, std::string source);
+    Shader(const char* computeName, bool hasExtra = false, const char* extraCode = "");
 
     void use() const;
 
     // utility uniform functions
-    void setBool(const std::string& name, bool value) const;
+    void setBool(const char* name, int len, bool value) const;
     // ------------------------------------------------------------------------
-    void setInt(const std::string& name, int value) const;
+    void setInt(const char* name, int len, int value) const;
     // ------------------------------------------------------------------------
-    void setFloat(const std::string& name, float value) const;
+    void setFloat(const char* name, int len, float value) const;
     // ------------------------------------------------------------------------
-    void setVec2(const std::string& name, const vec2& value) const;
-    void setVec2(const std::string& name, float x, float y) const;
+    void setVec2(const char* name, int len, const vec2& value) const;
+    void setVec2(const char* name, int len, float x, float y) const;
     // ------------------------------------------------------------------------
-    void setVec3(const std::string& name, const vec3& value) const;
-    void setVec3(const std::string& name, float x, float y, float z) const;
-    // ------------------------------------------------------------------------
-    // void setVec4(const std::string& name, const vec4& value) const;
-    // void setVec4(const std::string& name, float x, float y, float z, float w) const;
-    // ------------------------------------------------------------------------
-    // void setMat2(const std::string& name, const mat2& mat) const;
-    // // ------------------------------------------------------------------------
-    // void setMat3(const std::string& name, const mat3& mat) const;
-    // // ------------------------------------------------------------------------
-    // void setMat4(const std::string& name, const mat4& mat) const;
+    void setVec3(const char* name, int len, const vec3& value) const;
+    void setVec3(const char* name, int len, float x, float y, float z) const;
 
 private:
-    GLint getUniformLocation(const char* uniformName) const;
+    mutable std::vector<int> uniformCache;
+    void cacheUniforms();
 
-    mutable std::unordered_map<std::string, GLint> uniformCache;
+    GLint getUniformLocation(const char* uniformName, int len) const;
 };

@@ -2,8 +2,6 @@
 
 #include <chrono>
 #include <cmath>
-//#include <glm/geometric.hpp>
-//#include <glm/trigonometric.hpp>
 
 float currentTime()
 {
@@ -248,7 +246,7 @@ float degrees(float rad)
     return rad / (PI / 180.f);
 }
 
-int sign(float v)
+bool sign(float v)
 {
     return (0 < v) - (v < 0);
 }
@@ -275,4 +273,53 @@ vec3 max(const vec3& a, const vec3& b)
 float roundFloat(float v)
 {
     return floor(v + 0.5f);
+}
+
+unsigned int murmurHash2(const char* str, int len)
+{
+    // TODO should this be an arg?
+    constexpr unsigned int seed = 10;
+
+    // 'm' and 'r' are mixing constants generated offline.
+    // They're not really 'magic', they just happen to work well.
+    const unsigned int m = 0x5bd1e995;
+    const int r = 24;
+
+    // Initialize the hash to a 'random' value
+    unsigned int h = seed ^ len;
+
+    // Mix 4 bytes at a time into the hash
+    const unsigned char* data = (const unsigned char*) str;
+
+    while(len >= 4)
+    {
+        unsigned int k = *(unsigned int *)data;
+
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+
+        h *= m;
+        h ^= k;
+
+        data += 4;
+        len -= 4;
+    }
+
+    // Handle the last few bytes of the input array
+    switch(len)
+    {
+    case 3: h ^= data[2] << 16;
+    case 2: h ^= data[1] << 8;
+    case 1: h ^= data[0];
+            h *= m;
+    };
+
+    // Do a few final mixes of the hash to ensure the last few
+    // bytes are well-incorporated.
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+
+    return h;
 }

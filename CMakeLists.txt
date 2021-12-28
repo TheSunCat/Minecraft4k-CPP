@@ -45,7 +45,7 @@ add_executable(${PROJECT_NAME} ${ALL_FILES})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
 # for debugging
-# target_compile_options(${PROJECT_NAME} PRIVATE -g)
+#target_compile_options(${PROJECT_NAME} PRIVATE -g)
 
 if(UNIX)
     # TODO -m32, use C libs 
@@ -54,12 +54,12 @@ if(UNIX)
             -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
 	    -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
 	    -fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
-	    -finline-limit=10 -fno-asynchronous-unwind-tables 
+	    -finline-limit=10 -fno-asynchronous-unwind-tables
         )
 
     # TODO --nmagic
     target_link_options(${PROJECT_NAME} PRIVATE
-	    -s -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048,-z,norelro,-z,now,--as-needed,--gc-sections
+	    -s -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048,-z,norelro,-z,now,--as-needed,--gc-sections,-s
         )
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
