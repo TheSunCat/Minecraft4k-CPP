@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <glad/glad.h>
@@ -93,3 +92,11 @@ void reverse(char s[]);
 void itoa(int n, char s[]);
 
 #define PASS_STR(a) a, strlen(a)
+
+
+#ifdef DEBUG
+#include <cstdio>
+#define prints(a) fputs(a, stdout)
+#else
+#define prints(a)
+#endif

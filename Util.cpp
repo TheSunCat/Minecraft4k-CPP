@@ -203,7 +203,7 @@ bool glError()
         char err_s[5];
         itoa(err, err_s);
 
-        fputs("OpenGL error ", stdout); puts(err_s);
+        prints("OpenGL error "); prints(err_s); prints("\n");
         return true;
     }
 
@@ -217,7 +217,7 @@ void GLAPIENTRY error_callback(GLenum source,
                 GLsizei length,
                 const GLchar* message,
                 const void* userParam) {
-    fputs("GL error/warning: ", stdout); puts(message);
+    prints("GL error/warning: "); prints(message); prints("\n");
     
     //__debugbreak();
 }

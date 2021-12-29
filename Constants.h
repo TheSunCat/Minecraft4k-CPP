@@ -6,7 +6,6 @@
 
 //#define CLASSIC
 
-
 // PERFORMANCE OPTIONS
 
 constexpr int WORK_GROUP_SIZE = 16;

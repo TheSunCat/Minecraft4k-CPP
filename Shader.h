@@ -11,9 +11,9 @@ public:
 
     Shader() = default;
 
-    Shader(const char* vertexName, const char* fragmentName);
+    Shader(const char* vertexCode, const char* fragmentCode);
 
-    Shader(const char* computeName, bool hasExtra = false, const char* extraCode = "");
+    Shader(const char* computeCode);
 
     void use() const;
 

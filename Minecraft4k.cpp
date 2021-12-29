@@ -13,6 +13,10 @@
 #include "Util.h"
 #include "World.h"
 
+#include "screen.vert.h"
+#include "screen.frag.h"
+#include "raytrace.comp.h"
+
 struct Controller
 {
     float forward;
@@ -148,16 +152,16 @@ void init()
 {
     // generate world
 
-    fputs("Generating world... ", stdout);
+    prints("Generating world... ");
 #ifdef CLASSIC
     World::generateWorld(18295169L);
 #else
     World::generateWorld();
 #endif
 
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Uploading world to GPU... ", stdout);
+    prints("Uploading world to GPU... ");
     glGenTextures(1, &worldTexture);
     glBindTexture(GL_TEXTURE_3D, worldTexture);
 
@@ -182,12 +186,12 @@ void init()
 
     glBindTexture(GL_TEXTURE_3D, 0);
 
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Generating textures... ", stdout);
+    prints("Generating textures... ");
     textureAtlasTex = generateTextures(151910774187927L);
 
-    fputs("Finished initializing engine! Onto the game.\n", stdout);
+    prints("Finished initializing engine! Onto the game.\n");
 }
 
 void collidePlayer()
@@ -236,7 +240,7 @@ void collidePlayer()
         }
     }
 
-    //fputs(playerPos << '\n', stdout);
+    //prints(playerPos); prints('\n');
 }
 
 void pollInputs(GLFWwindow* window);
@@ -310,7 +314,7 @@ void run(GLFWwindow* window) {
 
         //raycast(SCR_RES / 2.0f, hoveredBlockPos, placeBlockPos);
 
-        //fputs(hoveredBlockPos << "\n", stdout);
+        //prints(hoveredBlockPos); prints("\n");
 
 
         // Compute the raytracing!
@@ -377,7 +381,6 @@ void run(GLFWwindow* window) {
 
     // put it out of its misery (evil code)
 #ifdef __unix__
-    fflush(stdout);
     _exit(0); // UNIX has a ruder function >:)
 #else
     _Exit(0);
@@ -532,21 +535,21 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
+// TODO maybe use _start: https://int21.de/linux4k/
 int main(const int argc, const char** argv)
 {
-    fputs("Initializing GLFW... ", stdout);
+    prints("Initializing GLFW... ");
 
     if (!glfwInit())
     {
         // Initialization failed
-        fputs("Failed to init GLFW!\n", stdout);
-        fflush(stdout);
+        prints("Failed to init GLFW!\n");
         return -1;
     }
 
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Creating window... ", stdout);
+    prints("Creating window... ");
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
@@ -565,14 +568,14 @@ int main(const int argc, const char** argv)
     if (!window)
     {
         // Window or OpenGL context creation failed
-        fputs("Failed to create window!\n", stdout);
+        prints("Failed to create window!\n");
         return -1;
     }
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Setting OpenGL context... ", stdout);
+    prints("Setting OpenGL context... ");
     glfwMakeContextCurrent(window);
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -580,16 +583,15 @@ int main(const int argc, const char** argv)
     // turn on VSync so we don't run at about a kjghpillion fps
     glfwSwapInterval(1);
 
-    fputs("Loading OpenGL functions... ", stdout);
+    prints("Loading OpenGL functions... ");
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
     {
-        fputs("Failed to initialize GLAD!\n", stdout);
-        fflush(stdout);
+        prints("Failed to initialize GLAD!\n");
         return -1;
     }
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Configuring OpenGL... ", stdout);
+    prints("Configuring OpenGL... ");
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
     
@@ -603,9 +605,9 @@ int main(const int argc, const char** argv)
 
     glfwSetCursorPosCallback(window, mouse_callback);
 
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Building shaders... ", stdout);
+    prints("Building shaders... ");
     char* numberBuf = new char[8];
 
     char* defines = new char[256];
@@ -627,24 +629,24 @@ int main(const int argc, const char** argv)
     strcat(defines, ", local_size_y = "); strcat(defines, numberBuf);
     strcat(defines, ") in;\n");
 
-    screenShader = Shader("screen", "screen");
-    computeShader = Shader("raytrace", true, defines);
+    screenShader = Shader(SCREEN_VERT, SCREEN_FRAG);
+    computeShader = Shader(RAYTRACE_COMP);
 
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
     
     glActiveTexture(GL_TEXTURE0);
 
-    fputs("Building buffers... ", stdout);
+    prints("Building buffers... ");
     initBuffers();
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Building render texture... ", stdout);
+    prints("Building render texture... ");
     initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
-    fputs("Done!\n", stdout);
+    prints("Done!\n");
 
-    fputs("Initializing engine...\n", stdout);
+    prints("Initializing engine...\n");
     init();
-    fputs("Finished initializing engine! Running the game...\n", stdout);
+    prints("Finished initializing engine! Running the game...\n");
 
     run(window);
 }

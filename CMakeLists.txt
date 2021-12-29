@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(Minecraft4k C CXX)
 
-include_directories(include)
+include_directories(include build)
 
 set(PROJECT_NAME Minecraft4k)
 
@@ -40,15 +40,24 @@ set(ALL_FILES
     ${Source_Files}
 )
 
+# TODO copy Constants.h #defines to raytrace.comp
+add_subdirectory(embedFiles)
+embed(embedded
+    AS_TEXT
+        res/screen.vert
+        res/screen.frag
+        res/raytrace.comp
+)
 
-add_executable(${PROJECT_NAME} ${ALL_FILES})
+add_executable(${PROJECT_NAME} ${ALL_FILES} ${embedded})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
+
 # for debugging
-#target_compile_options(${PROJECT_NAME} PRIVATE -g)
+#target_compile_options(${PROJECT_NAME} PRIVATE -g -DDEBUG)
 
 if(UNIX)
-	# TODO -m32, use C libs 
+    # TODO -m32, use C libs 
     target_compile_options(${PROJECT_NAME} PRIVATE
         -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
         -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
@@ -115,7 +124,7 @@ set(ADDITIONAL_LIBRARY_DEPENDENCIES
 )
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" embed)
 
 link_directories(${PROJECT_NAME} PRIVATE
     "lib"

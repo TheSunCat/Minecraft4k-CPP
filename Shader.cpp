@@ -1,61 +1,11 @@
 #include "Shader.h"
 
 #include <cstring>
-#include <cstdio>
 
 #include "Util.h"
 
-Shader::Shader(const char* vertexName, const char* fragmentName)
+Shader::Shader(const char* vertexCode, const char* fragmentCode)
 {
-    char vertexFullName[32] = "res/";
-    char fragmentFullName[32] = "res/";
-
-    strcat(vertexFullName, vertexName); strcat(vertexFullName, ".vert");
-    strcat(fragmentFullName, fragmentName); strcat(fragmentFullName, ".frag");
-
-    FILE* vShaderFile;
-    FILE* fShaderFile;
-    
-    // read file contents with jank C functions (owwww)
-    vShaderFile = fopen(vertexFullName, "r");
-    if(!vShaderFile) {
-        fputs("\n\nERROR: Failed to read vertex shader \"", stdout); fputs(vertexFullName, stdout); fputs("\"!\n\n", stdout);
-        return;
-    }
-
-    fseek(vShaderFile, 0L, SEEK_END);
-    int vShaderSize = ftell(vShaderFile);
-    fseek(vShaderFile, 0L, SEEK_SET);
-
-    char* vertexSource = new char[vShaderSize + 1];
-    for(int pos = 0; pos < vShaderSize; pos++)
-    {
-        vertexSource[pos] = getc(vShaderFile);
-    }
-    vertexSource[vShaderSize] = '\0'; // null-terminate 
-
-    fclose(vShaderFile);
-
-    fShaderFile = fopen(fragmentFullName, "r");
-    if(!fShaderFile) {
-        fputs("\n\nERROR: Failed to read fragment shader \"", stdout); fputs(fragmentFullName, stdout); fputs("\"!\n\n", stdout);
-        return;
-    }
-
-    fseek(fShaderFile, 0L, SEEK_END);
-    int fShaderSize = ftell(fShaderFile);
-    fseek(fShaderFile, 0L, SEEK_SET);
-
-    char* fragmentSource = new char[fShaderSize + 1];
-    for(int pos = 0; pos < fShaderSize; pos++)
-    {
-        fragmentSource[pos] = getc(fShaderFile);
-    }
-    fragmentSource[fShaderSize] = '\0'; // null-terminate 
-
-    fclose(fShaderFile);
-
-
     // compile
     GLuint vertex, fragment;
     int success;
@@ -63,7 +13,7 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
 
     
     vertex = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex, 1, &vertexSource, nullptr);
+    glShaderSource(vertex, 1, &vertexCode, nullptr);
     glCompileShader(vertex);
     
     // catch compile errors
@@ -71,13 +21,12 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        fputs("\n\nERROR: Failed to compile vertex shader \"", stdout); fputs(vertexFullName, stdout);
-        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
+        prints("\n\nERROR: Failed to compile vertex shader! Error log:\n"); prints(infoLog); prints("\n\n");
         return;
     }
     
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment, 1, &fragmentSource, nullptr);
+    glShaderSource(fragment, 1, &fragmentCode, nullptr);
     glCompileShader(fragment);
     
     // catch compile errors
@@ -85,8 +34,7 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
-        fputs("\n\nERROR: Failed to compile fragment shader \"", stdout); fputs(fragmentFullName, stdout);
-        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
+        prints("\n\nERROR: Failed to compile fragment shader! Error log:\n"); prints(infoLog); prints("\n\n");
         return;
     }
 
@@ -103,9 +51,7 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        fputs("\n\nERROR: Failed to link shaders \"", stdout); fputs(vertexFullName, stdout);
-        fputs("\" & \"", stdout); fputs(fragmentFullName, stdout);
-        fputs("\"! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
+        prints("\n\nERROR: Failed to link shader program! Error log:\n"); prints(infoLog); prints("\n\n");
         return;
     }
 
@@ -116,52 +62,13 @@ Shader::Shader(const char* vertexName, const char* fragmentName)
     cacheUniforms();
 }
 
-Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
+Shader::Shader(const char* computeCode)
 {
-    int extraLength = strlen(extraCode);
-
-    char computeFullName[32] = "res/";
-    strcat(computeFullName, computeName); strcat(computeFullName, ".comp");
-
-    FILE* computeFile;
-    computeFile = fopen(computeFullName, "r");
-    if(!computeFile) {
-        fputs("\n\nERROR: Failed to read compute shader file \"", stdout); fputs(computeFullName, stdout); fputs("!\n\n", stdout);
-        return;
-    }
-
-    fseek(computeFile, 0L, SEEK_END);
-    int cShaderFileSize = ftell(computeFile);
-    fseek(computeFile, 0L, SEEK_SET);
-
-    // also allocate space for extraCode
-    char* computeSource = new char[cShaderFileSize + extraLength + 1]; // for null terminate
-    for(int pos = 0; pos < cShaderFileSize; pos++)
-    {
-        computeSource[pos] = getc(computeFile);
-    }
-    computeSource[cShaderFileSize] = '\0'; // null-terminate 
-
-    fclose(computeFile);
-
-    if(hasExtra)
-    { // augh gotta insert into C string
-        int startLength = strlen("#version 430\n");
-        int tailLength = cShaderFileSize + 1 - startLength;
-
-        char* tail = new char[tailLength];
-        strcpy(tail, computeSource + startLength);
-
-        strcpy(computeSource + startLength, extraCode);
-
-        strcpy(computeSource + startLength + extraLength, tail);
-    }
-
-    computeSource[cShaderFileSize + extraLength] = '\0'; // null-terminate jic
+    prints(computeCode);
 
     const GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
 
-    glShaderSource(computeShader, 1, &computeSource, nullptr);
+    glShaderSource(computeShader, 1, &computeCode, nullptr);
     glCompileShader(computeShader);
 
     // catch errors
@@ -172,8 +79,7 @@ Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
     if (!success)
     {
         glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
-        fputs("\n\nERROR: Failed to compile compute shader \"", stdout); fputs(computeFullName, stdout);
-        fputs("! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
+        prints("\n\nERROR: Failed to compile compute shader! Error log:\n"); prints(infoLog); prints("\n\n");
         return;
     }
 
@@ -187,8 +93,7 @@ Shader::Shader(const char* computeName, bool hasExtra, const char* extraCode)
     if (!success)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
-        fputs("\n\nERROR: Failed to link compute shader \"", stdout); fputs(computeFullName, stdout);
-        fputs("! Error log:\n", stdout); fputs(infoLog, stdout); fputs("\n\n", stdout);
+        prints("\n\nERROR: Failed to link compute shader! Error log:\n"); prints(infoLog); prints("\n\n");
         return;
     }
 
@@ -269,6 +174,6 @@ GLint Shader::getUniformLocation(const char* uniformName, int len) const
             return loc;
     }
 
-    fputs("ERROR: Can't find uniform ", stdout); puts(uniformName);
+    prints("ERROR: Can't find uniform "); prints(uniformName); prints("\n");
     return 0;
 }
