@@ -320,25 +320,25 @@ void run(GLFWwindow* window) {
         computeShader.use();
 
         glBindImageTexture(1, worldTexture, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R8UI);
-        computeShader.setVec2(PASS_STR("screenSize"), SCR_RES.x, SCR_RES.y);
+        computeShader.setVec2(PASS_STR("S"), SCR_RES.x, SCR_RES.y);
 
         glBindTexture(GL_TEXTURE_2D, textureAtlasTex);
-        computeShader.setInt(PASS_STR("textureAtlas"), 0);
+        computeShader.setInt(PASS_STR("t"), 0);
 
-        computeShader.setFloat(PASS_STR("cam.cosYaw"), cos(cameraYaw));
-        computeShader.setFloat(PASS_STR("cam.cosPitch"), cos(cameraPitch));
-        computeShader.setFloat(PASS_STR("cam.sinYaw"), sin(cameraYaw));
-        computeShader.setFloat(PASS_STR("cam.sinPitch"), sin(cameraPitch));
-        computeShader.setVec2(PASS_STR("cam.frustumDiv"), frustumDiv);
-        computeShader.setVec3(PASS_STR("cam.pos"), playerPos);
+        computeShader.setFloat(PASS_STR("c.cY"), cos(cameraYaw));
+        computeShader.setFloat(PASS_STR("c.cP"), cos(cameraPitch));
+        computeShader.setFloat(PASS_STR("c.sY"), sin(cameraYaw));
+        computeShader.setFloat(PASS_STR("c.sP"), sin(cameraPitch));
+        computeShader.setVec2(PASS_STR("c.fD"), frustumDiv);
+        computeShader.setVec3(PASS_STR("c.P"), playerPos);
 
 #ifdef CLASSIC
 
 #else
-        computeShader.setVec3(PASS_STR("lightDirection"), lightDirection);
-        computeShader.setVec3(PASS_STR("skyColor"), skyColor);
-        computeShader.setVec3(PASS_STR("ambColor"), ambColor);
-        computeShader.setVec3(PASS_STR("sunColor"), sunColor);
+        computeShader.setVec3(PASS_STR("l"), lightDirection);
+        computeShader.setVec3(PASS_STR("k"), skyColor);
+        computeShader.setVec3(PASS_STR("a"), ambColor);
+        computeShader.setVec3(PASS_STR("s"), sunColor);
 #endif
 
         glInvalidateTexImage(screenTexture, 0);
@@ -595,26 +595,6 @@ int main(const int argc, const char** argv)
     prints("Done!\n");
 
     prints("Building shaders... ");
-    char* numberBuf = new char[8];
-
-    char* defines = new char[256];
-    strcpy(defines, "#define WORLD_SIZE ");
-    itoa(WORLD_SIZE, numberBuf); strcat(defines, numberBuf);
-    strcat(defines, "\n#define WORLD_HEIGHT ");
-    itoa(WORLD_HEIGHT, numberBuf); strcat(defines, numberBuf);
-    strcat(defines, "\n#define TEXTURE_RES ");
-    itoa(TEXTURE_RES, numberBuf); strcat(defines, numberBuf);
-    strcat(defines, "\n#define RENDER_DIST ");
-    itoa(RENDER_DIST, numberBuf); strcat(defines, numberBuf);
-    
-#ifdef CLASSIC
-    defines << "\n#define CLASSIC";
-#endif
-
-    strcat(defines, "\nlayout(local_size_x = ");
-    itoa(WORK_GROUP_SIZE, numberBuf); strcat(defines, numberBuf);
-    strcat(defines, ", local_size_y = "); strcat(defines, numberBuf);
-    strcat(defines, ") in;\n");
 
     screenShader = Shader(screen_vert, screen_frag);
     computeShader = Shader(raytrace_comp);
