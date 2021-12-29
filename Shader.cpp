@@ -22,7 +22,7 @@ Shader::Shader(const char* vertexCode, const char* fragmentCode)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
         prints("\n\nERROR: Failed to compile vertex shader! Error log:\n"); prints(infoLog); prints("\n\n");
-        return;
+        crash();
     }
     
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -35,7 +35,7 @@ Shader::Shader(const char* vertexCode, const char* fragmentCode)
     {
         glGetShaderInfoLog(vertex, 512, nullptr, infoLog);
         prints("\n\nERROR: Failed to compile fragment shader! Error log:\n"); prints(infoLog); prints("\n\n");
-        return;
+        crash();
     }
 
     
@@ -52,7 +52,7 @@ Shader::Shader(const char* vertexCode, const char* fragmentCode)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
         prints("\n\nERROR: Failed to link shader program! Error log:\n"); prints(infoLog); prints("\n\n");
-        return;
+        crash();
     }
 
     // delete the shaders as they're linked into our program now and no longer necessary
@@ -80,7 +80,7 @@ Shader::Shader(const char* computeCode)
     {
         glGetShaderInfoLog(computeShader, 512, nullptr, infoLog);
         prints("\n\nERROR: Failed to compile compute shader! Error log:\n"); prints(infoLog); prints("\n\n");
-        return;
+        crash();
     }
 
     // link the program
@@ -94,7 +94,7 @@ Shader::Shader(const char* computeCode)
     {
         glGetProgramInfoLog(ID, 512, nullptr, infoLog);
         prints("\n\nERROR: Failed to link compute shader! Error log:\n"); prints(infoLog); prints("\n\n");
-        return;
+        crash();
     }
 
     glDetachShader(ID, computeShader);

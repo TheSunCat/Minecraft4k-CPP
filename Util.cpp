@@ -346,3 +346,29 @@ void itoa(int n, char s[])
     s[i] = '\0';
     reverse(s);
 }
+
+#ifdef DEBUG
+
+#ifdef __unix__
+#include <unistd.h>
+#endif
+
+void crash()
+{
+    fflush(stdout);
+
+#ifdef __unix__
+    _exit(0); // UNIX has a ruder function >:)
+#else
+    _Exit(0);
+#endif
+}
+
+#else
+void crash()
+{
+    // TODO figure out how to quit without including unistd
+    return;
+}
+
+#endif

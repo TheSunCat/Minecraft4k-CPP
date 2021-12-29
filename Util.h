@@ -100,3 +100,4 @@ void itoa(int n, char s[]);
 #else
 #define prints(a)
 #endif
+void crash();

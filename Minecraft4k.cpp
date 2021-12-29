@@ -1,9 +1,5 @@
 #include <cmath>
 
-#ifdef __unix__
-#include <unistd.h>
-#endif
-
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -13,9 +9,7 @@
 #include "Util.h"
 #include "World.h"
 
-#include "screen.vert.h"
-#include "screen.frag.h"
-#include "raytrace.comp.h"
+#include "shader_code.h"
 
 struct Controller
 {
@@ -347,9 +341,6 @@ void run(GLFWwindow* window) {
         computeShader.setVec3(PASS_STR("sunColor"), sunColor);
 #endif
 
-        //computeShader.setVec3("fogColor", skyColor);
-
-
         glInvalidateTexImage(screenTexture, 0);
 
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -380,11 +371,7 @@ void run(GLFWwindow* window) {
     }
 
     // put it out of its misery (evil code)
-#ifdef __unix__
-    _exit(0); // UNIX has a ruder function >:)
-#else
-    _Exit(0);
-#endif
+    crash();
 
     //glfwTerminate();
 }
@@ -629,8 +616,8 @@ int main(const int argc, const char** argv)
     strcat(defines, ", local_size_y = "); strcat(defines, numberBuf);
     strcat(defines, ") in;\n");
 
-    screenShader = Shader(SCREEN_VERT, SCREEN_FRAG);
-    computeShader = Shader(RAYTRACE_COMP);
+    screenShader = Shader(screen_vert, screen_frag);
+    computeShader = Shader(raytrace_comp);
 
     prints("Done!\n");
     
