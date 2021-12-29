@@ -40,6 +40,8 @@ set(ALL_FILES
     ${Source_Files}
 )
 
+find_package(SDL2 REQUIRED)
+
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
@@ -53,29 +55,29 @@ if(UNIX)
     add_dependencies(${PROJECT_NAME} ${FAKE_TARGET})
 
     # for debugging
-    #target_compile_options(${PROJECT_NAME} PRIVATE -g -DDEBUG) 
+    #    target_compile_options(${PROJECT_NAME} PRIVATE -g -DDEBUG) 
 
     # TODO -m32, use C libs 
     target_compile_options(${PROJECT_NAME} PRIVATE
         -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
         -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
         -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
-    	-fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
+       	-fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
         -finline-limit=10 -fno-asynchronous-unwind-tables
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
-        -Wl,--hash-style=gnu,--build-id=none#,-z,max-page-size=2048
+        -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048
     )
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND strip -S --strip-unneeded --remove-section=.note.gnu.gold-version --remove-section=.comment --remove-section=.note --remove-section=.note.gnu.build-id --remove-section=.note.ABI-tag -R .note -R .comment -R .eh_frame -R .eh_frame_hdr -s ${PROJECT_NAME}
+	    COMMAND strip -S --strip-unneeded --remove-section=.note.gnu.gold-version --remove-section=.comment --remove-section=.note --remove-section=.note.gnu.build-id --remove-section=.note.ABI-tag -R .note -R .comment -R .eh_frame -R .eh_frame_hdr -s ${PROJECT_NAME}
 	
-        COMMAND objcopy --remove-section .note.gnu.property --remove-section .gnu.version --remove-section .fini --remove-section .init_array --remove-section .got ${PROJECT_NAME}
+	    COMMAND objcopy --remove-section .note.gnu.property --remove-section .gnu.version --remove-section .fini --remove-section .init_array --remove-section .got ${PROJECT_NAME}
 
-        COMMAND sstrip ${PROJECT_NAME}
+	    COMMAND sstrip ${PROJECT_NAME}
 
-        COMMAND gzexe ${PROJECT_NAME}
+            COMMAND gzexe ${PROJECT_NAME}
     )
 
 endif()
@@ -110,19 +112,13 @@ if(MSVC)
     )
 endif()
 
-# Dependencies
 if(UNIX)
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
-    "glfw"
     "dl"
-)
-else()
-set(ADDITIONAL_LIBRARY_DEPENDENCIES
-    "glfw"
 )
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" ${SDL2_LIBRARIES})
 
 link_directories(${PROJECT_NAME} PRIVATE
     "lib"

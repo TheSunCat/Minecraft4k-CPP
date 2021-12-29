@@ -367,8 +367,7 @@ void crash()
 #else
 void crash()
 {
-    // TODO figure out how to quit without including unistd
-    return;
+    exit(0);
 }
 
 #endif

@@ -1,7 +1,7 @@
 #include <cmath>
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 
 #include "Constants.h"
 #include "Shader.h"
@@ -10,6 +10,8 @@
 #include "World.h"
 
 #include "shader_code.h"
+
+SDL_GLContext mainContext;
 
 struct Controller
 {
@@ -20,7 +22,7 @@ struct Controller
 
     vec2 lastMousePos;
 
-    bool firstMouse = true;
+    //bool firstMouse = true;
 
     void reset()
     {
@@ -86,8 +88,11 @@ static vec3 lerp(const vec3& start, const vec3& end, const float t)
 }
 
 void initTexture(GLuint* texture, const int width, const int height);
+void updateMouse(SDL_Window* window);
+void updateController(SDL_Window* window);
+void onWindowResized(int width, int height);
 
-void updateScreenResolution(GLFWwindow* window)
+void updateScreenResolution(SDL_Window* window)
 {
     if (SCR_DETAIL < -4)
         SCR_DETAIL = -4;
@@ -134,7 +139,7 @@ void updateScreenResolution(GLFWwindow* window)
         break;
     }
 
-    glfwSetWindowTitle(window, title);
+    SDL_SetWindowTitle(window, title);
 
     glDeleteTextures(1, &screenTexture);
     initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
@@ -237,18 +242,22 @@ void collidePlayer()
     //prints(playerPos); prints('\n');
 }
 
-void pollInputs(GLFWwindow* window);
-
-void run(GLFWwindow* window) {
+void run(SDL_Window* window) {
     auto lastUpdateTime = currentTime();
     float lastFrameTime = lastUpdateTime - 16;
 
-    while (!glfwWindowShouldClose(window)) {
+    SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+
+    SDL_Event evt;
+
+    bool running = true;
+    while(running) {
         const float frameTime = currentTime();
         deltaTime = frameTime - lastFrameTime;
         lastFrameTime = frameTime;
 
-        pollInputs(window);
+        updateMouse(window);
+        updateController(window);
 
         if (needsResUpdate) {
             updateScreenResolution(window);
@@ -366,8 +375,15 @@ void run(GLFWwindow* window) {
 
         glUseProgram(0);
 
-        glfwSwapBuffers(window);
-        glfwPollEvents();
+        prints("frame\n");
+
+        SDL_GL_SwapWindow(window);
+
+        while(SDL_PollEvent(&evt))
+        {
+            if(evt.type == SDL_QUIT)
+                running = false;
+        }
     }
 
     // put it out of its misery (evil code)
@@ -376,26 +392,14 @@ void run(GLFWwindow* window) {
     //glfwTerminate();
 }
 
-void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
+void updateMouse(SDL_Window* window)
 {
-    const auto xPos = float(xPosD);
-    const auto yPos = float(yPosD);
+    int x, y;
+    SDL_GetMouseState(&x, &y);
+    SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
 
-    if (controller.firstMouse) {
-        controller.lastMousePos.x = xPos;
-        controller.lastMousePos.y = yPos;
-        controller.firstMouse = false;
-        return; // nothing to calculate because we technically didn't move the mouse
-    }
-
-    const float xOffset = xPos - controller.lastMousePos.x;
-    const float yOffset = controller.lastMousePos.y - yPos;
-
-    controller.lastMousePos.x = xPos;
-    controller.lastMousePos.y = yPos;
-
-    cameraYaw += xOffset / 500.0f;
-    cameraPitch += yOffset / 500.0f;
+    cameraYaw += (x - (WINDOW_WIDTH / 2)) / 500.0f;
+    cameraPitch -= (y - (WINDOW_HEIGHT / 2)) / 500.0f;
 
     if(fabs(cameraYaw) > PI)
     {
@@ -407,11 +411,12 @@ void mouse_callback(GLFWwindow*, const double xPosD, const double yPosD)
     cameraPitch = clamp(cameraPitch, -PI / 2.0f, PI / 2.0f);
 }
 
-bool keyDown(GLFWwindow* window, int key)
+void onWindowResized(int width, int height)
 {
-    return glfwGetKey(window, key) == GLFW_PRESS;
+    glViewport(0, 0, width, height);
 }
 
+/*
 // TODO this ain't working
 struct KeyEntry {
     int keyID;
@@ -419,7 +424,7 @@ struct KeyEntry {
 };
 
 std::vector<KeyEntry> keyHistory;
-bool keyPress(GLFWwindow* window, int key)
+bool keyPress(SDL_Window* window, int key)
 {
     int pressState = glfwGetKey(window, key);
 
@@ -451,28 +456,30 @@ bool keyPress(GLFWwindow* window, int key)
         keyHistory.erase(keyHistory.begin() + loc);
 
     return false;
-}
+}*/
 
-void pollInputs(GLFWwindow* window)
+void updateController(SDL_Window* window)
 {
     controller.reset();
 
-    if(keyDown(window, GLFW_KEY_W))
+    const uint8_t *keyboard = SDL_GetKeyboardState(nullptr);
+
+    if(keyboard[SDL_SCANCODE_W])
         controller.forward += 1.0f;
-    if (keyDown(window, GLFW_KEY_S))
+    if (keyboard[SDL_SCANCODE_S])
         controller.forward -= 1.0f;
-    if (keyDown(window, GLFW_KEY_D))
+    if (keyboard[SDL_SCANCODE_D])
         controller.right += 1.0f;
-    if (keyDown(window, GLFW_KEY_A))
+    if (keyboard[SDL_SCANCODE_A])
         controller.right -= 1.0f;
-    if (keyDown(window, GLFW_KEY_SPACE))
+    if (keyboard[SDL_SCANCODE_SPACE])
         controller.jump = true;
 
-    if (keyPress(window, GLFW_KEY_COMMA)) {
+    if (keyboard[SDL_SCANCODE_COMMA]) {
         SCR_DETAIL--;
         needsResUpdate = true;
     }
-    if (keyPress(window, GLFW_KEY_PERIOD)) {
+    if (keyboard[SDL_SCANCODE_PERIOD]) {
         SCR_DETAIL++;
         needsResUpdate = true;
     }
@@ -517,70 +524,61 @@ void initTexture(GLuint* texture, const int width, const int height) {
     glBindImageTexture(0, *texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
-
 // TODO maybe use _start: https://int21.de/linux4k/
 int main(const int argc, const char** argv)
 {
-    prints("Initializing GLFW... ");
-
-    if (!glfwInit())
-    {
-        // Initialization failed
-        prints("Failed to init GLFW!\n");
-        return -1;
-    }
-
+    prints("Initializing SDL... ");
+    // uhh I guess we don't need to SDL_Init??
     prints("Done!\n");
 
     prints("Creating window... ");
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
-#ifdef _DEBUG
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
-#endif
-
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+    // Request an OpenGL 4.3 context (should be core)
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1); // TODO what is this?
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 
 #ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // add on Mac bc Apple is big dumb :(
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE ); // add on Mac bc Apple is big dumb :(
 #endif
     
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Minecraft4k", nullptr, nullptr);
-    if (!window)
+    SDL_Window* window = SDL_CreateWindow("Minecraft4k", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+                                                            WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
+
+    SDL_SetWindowResizable(window, SDL_TRUE);
+                
+    if(!window)
     {
-        // Window or OpenGL context creation failed
         prints("Failed to create window!\n");
         return -1;
     }
     prints("Done!\n");
 
+    SDL_ShowCursor(SDL_FALSE);
+
     prints("Setting OpenGL context... ");
-    glfwMakeContextCurrent(window);
-    prints("Done!\n");
-
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-    // turn on VSync so we don't run at about a kjghpillion fps
-    glfwSwapInterval(1);
-
-    prints("Loading OpenGL functions... ");
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
+    mainContext = SDL_GL_CreateContext(window);
+    if(!mainContext)
     {
-        prints("Failed to initialize GLAD!\n");
+        prints("Failed to create OpenGL context!\n");
         return -1;
     }
+    
     prints("Done!\n");
 
+    prints("Loading OpenGL functions... ");
+    gladLoadGLLoader(SDL_GL_GetProcAddress);
+    prints("Done!\n");
+
+    // enable vsync so we don't run at about a kjghpillion fps
+    SDL_GL_SetSwapInterval(1);
+
     prints("Configuring OpenGL... ");
+
+#ifdef DEBUG
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(error_callback, nullptr);
+#endif
     
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
     glClearDepth(1);
@@ -590,7 +588,7 @@ int main(const int argc, const char** argv)
     glCullFace(GL_FRONT_AND_BACK);
     glClearColor(0, 0, 0, 1);
 
-    glfwSetCursorPosCallback(window, mouse_callback);
+    //glfwSetCursorPosCallback(window, mouse_callback);
 
     prints("Done!\n");
 
@@ -616,4 +614,6 @@ int main(const int argc, const char** argv)
     prints("Finished initializing engine! Running the game...\n");
 
     run(window);
+
+    SDL_ShowCursor(SDL_TRUE);
 }
