@@ -16,7 +16,9 @@ Sunshet at original resolution:
 
 <br>
 <br>
-## Controls:<br>
+
+## Controls:
+
 - Move: WASD<br>
 - Jump: Space<br>
 - Break block: Left Click<br>
