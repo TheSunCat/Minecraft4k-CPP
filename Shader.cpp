@@ -1,7 +1,5 @@
 #include "Shader.h"
 
-#include <cstring>
-
 #include "Util.h"
 
 Shader::Shader(const char* vertexCode, const char* fragmentCode)

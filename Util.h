@@ -1,14 +1,13 @@
 #pragma once
 
-#include <cstdint>
-#include <cstring>
-#include <glad/glad.h>
+#include <glad.h>
 
+#include "Constants.h"
 #include "Vector.h"
 
-constexpr float PI = 3.14159265359f;
-
 float currentTime();
+
+constexpr float PI = 3.14159265359f;
 
 // It's just the Java Random class
 class Random
@@ -68,22 +67,32 @@ void GLAPIENTRY error_callback(GLenum source,
     const GLchar* message,
     const void* userParam);
 
-vec3 rotToVec3(float yaw, float pitch);
-
 float radians(float deg);
 float degrees(float rad);
 
-// why do I have to define these??
-/*
-float absf(float v);
-float maxf(float a, float b);*/
-float roundFloat(float v);
+int roundFloat(float v);
+//float abs(float v);
 bool sign(float v);
 float fract(float v);
+float floor(float x);
+float sqrt(float v);
+float pow(float v, int p);
+float mod(float v, float d);
+float trunc(float v);
+
+float cos(float x);
+float sin(float x);
 
 vec3 max(const vec3& a, const vec3& b);
 
 unsigned int murmurHash2(const char* str, int len);
+
+/*
+unsigned long strlen(const char *str);
+char *strcpy(char *strDest, const char *strSrc);
+char *strcat(char *dest, const char *src);
+*/
+void memcpy(void *dest, void *src, long unsigned int n);
 
 /* reverse:  reverse string s in place */
 void reverse(char s[]);

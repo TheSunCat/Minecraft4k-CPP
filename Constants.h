@@ -1,6 +1,7 @@
 #pragma once
 
-#include <cstdint>
+typedef unsigned char uint8_t;
+typedef unsigned long uint64_t;
 
 #include "Vector.h"
 

@@ -19,11 +19,18 @@
         https://glad.dav1d.de/#profile=compatibility&language=c&specification=gl&loader=on&api=gl%3D4.3
 */
 
-#include <stdlib.h>
-#include <string.h>
-#include <glad/glad.h>
+// use Util.h functions in C
+unsigned long strlen(const char *str);
+void memcpy(void *dest, void *src, long unsigned int n);
+
+// use SDL's malloc
+#include "malloc-2.8.3.h"
+
+#include <glad.h>
+//#define NULL 0
 
 static void* get_proc(const char *namez);
+
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #ifndef _WINDOWS_
@@ -75,7 +82,7 @@ void close_gl(void) {
     }
 }
 #else
-#include <dlfcn.h>
+// TODO what is this #include <dlfcn.h>
 static void* libGL;
 
 #if !defined(__APPLE__) && !defined(__HAIKU__)
@@ -83,6 +90,7 @@ typedef void* (APIENTRYP PFNGLXGETPROCADDRESSPROC_PRIVATE)(const char*);
 static PFNGLXGETPROCADDRESSPROC_PRIVATE gladGetProcAddressPtr;
 #endif
 
+/*
 static
 int open_gl(void) {
 #ifdef __APPLE__
@@ -122,9 +130,10 @@ void close_gl(void) {
         dlclose(libGL);
         libGL = NULL;
     }
-}
+}*/
 #endif
 
+/*
 static
 void* get_proc(const char *namez) {
     void* result = NULL;
@@ -155,7 +164,7 @@ int gladLoadGL(void) {
     }
 
     return status;
-}
+}*/
 
 struct gladGLversionStruct GLVersion = { 0, 0 };
 
@@ -182,7 +191,7 @@ static int get_exts(void) {
         num_exts_i = 0;
         glGetIntegerv(GL_NUM_EXTENSIONS, &num_exts_i);
         if (num_exts_i > 0) {
-            exts_i = (char **)malloc((size_t)num_exts_i * (sizeof *exts_i));
+            exts_i = (char **)malloc((unsigned long)num_exts_i * (sizeof *exts_i));
         }
 
         if (exts_i == NULL) {
@@ -191,7 +200,7 @@ static int get_exts(void) {
 
         for(index = 0; index < (unsigned)num_exts_i; index++) {
             const char *gl_str_tmp = (const char*)glGetStringi(GL_EXTENSIONS, index);
-            size_t len = strlen(gl_str_tmp);
+            unsigned long len = strlen(gl_str_tmp);
 
             char *local_str = (char*)malloc((len+1) * sizeof(char));
             if(local_str != NULL) {
@@ -215,7 +224,7 @@ static void free_exts(void) {
     }
 }
 
-static int has_ext(const char *ext) {
+/*static int has_ext(const char *ext) {
 #ifdef _GLAD_IS_SOME_NEW_VERSION
     if(max_loaded_major < 3) {
 #endif
@@ -255,7 +264,8 @@ static int has_ext(const char *ext) {
 #endif
 
     return 0;
-}
+}*/
+
 int GLAD_GL_VERSION_1_0 = 1;
 int GLAD_GL_VERSION_1_1 = 1;
 int GLAD_GL_VERSION_1_2 = 1;
@@ -1302,7 +1312,7 @@ static void load_GL_VERSION_4_3(GLADloadproc load) {
 }
 static int find_extensionsGL(void) {
 	if (!get_exts()) return 0;
-	(void)&has_ext;
+	//(void)&has_ext;
 	free_exts();
 	return 1;
 }

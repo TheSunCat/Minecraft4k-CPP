@@ -1,4 +1,4 @@
 #pragma once
-#include <glad/glad.h>
+#include <glad.h>
 
 GLuint generateTextures(long long seed);

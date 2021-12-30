@@ -1,7 +1,5 @@
-#include <cmath>
-
-#include <glad/glad.h>
-#include <SDL2/SDL.h>
+#include <glad.h>
+#include <SDL/SDL.h>
 
 #include "Constants.h"
 #include "Shader.h"
@@ -10,8 +8,6 @@
 #include "World.h"
 
 #include "shader_code.h"
-
-SDL_GLContext mainContext;
 
 struct Controller
 {
@@ -88,11 +84,11 @@ static vec3 lerp(const vec3& start, const vec3& end, const float t)
 }
 
 void initTexture(GLuint* texture, const int width, const int height);
-void updateMouse(SDL_Window* window);
-void updateController(SDL_Window* window);
+void updateMouse();
+void updateController();
 void onWindowResized(int width, int height);
 
-void updateScreenResolution(SDL_Window* window)
+void updateScreenResolution()
 {
     if (SCR_DETAIL < -4)
         SCR_DETAIL = -4;
@@ -139,7 +135,7 @@ void updateScreenResolution(SDL_Window* window)
         break;
     }
 
-    SDL_SetWindowTitle(window, title);
+    SDL_WM_SetCaption(title, nullptr);
 
     glDeleteTextures(1, &screenTexture);
     initTexture(&screenTexture, int(SCR_RES.x), int(SCR_RES.y));
@@ -242,11 +238,11 @@ void collidePlayer()
     //prints(playerPos); prints('\n');
 }
 
-void run(SDL_Window* window) {
+void run() {
     auto lastUpdateTime = currentTime();
     float lastFrameTime = lastUpdateTime - 16;
 
-    SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+    SDL_WarpMouse(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
 
     SDL_Event evt;
 
@@ -256,11 +252,11 @@ void run(SDL_Window* window) {
         deltaTime = frameTime - lastFrameTime;
         lastFrameTime = frameTime;
 
-        updateMouse(window);
-        updateController(window);
+        updateMouse();
+        updateController();
 
         if (needsResUpdate) {
-            updateScreenResolution(window);
+            updateScreenResolution();
         }
 
         sinYaw = sin(cameraYaw);
@@ -377,7 +373,7 @@ void run(SDL_Window* window) {
 
         prints("frame\n");
 
-        SDL_GL_SwapWindow(window);
+        SDL_GL_SwapBuffers();
 
         while(SDL_PollEvent(&evt))
         {
@@ -392,16 +388,16 @@ void run(SDL_Window* window) {
     //glfwTerminate();
 }
 
-void updateMouse(SDL_Window* window)
+void updateMouse()
 {
     int x, y;
     SDL_GetMouseState(&x, &y);
-    SDL_WarpMouseInWindow(window, WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
+    SDL_WarpMouse(WINDOW_WIDTH / 2, WINDOW_HEIGHT / 2);
 
     cameraYaw += (x - (WINDOW_WIDTH / 2)) / 500.0f;
     cameraPitch -= (y - (WINDOW_HEIGHT / 2)) / 500.0f;
 
-    if(fabs(cameraYaw) > PI)
+    if(abs(cameraYaw) > PI)
     {
         if (cameraYaw > 0)
             cameraYaw = -PI - (cameraYaw - PI);
@@ -458,28 +454,28 @@ bool keyPress(SDL_Window* window, int key)
     return false;
 }*/
 
-void updateController(SDL_Window* window)
+void updateController()
 {
     controller.reset();
 
-    const uint8_t *keyboard = SDL_GetKeyboardState(nullptr);
+    const uint8_t *keyboard = SDL_GetKeyState(nullptr);
 
-    if(keyboard[SDL_SCANCODE_W])
+    if(keyboard[SDLK_w])
         controller.forward += 1.0f;
-    if (keyboard[SDL_SCANCODE_S])
+    if (keyboard[SDLK_s])
         controller.forward -= 1.0f;
-    if (keyboard[SDL_SCANCODE_D])
+    if (keyboard[SDLK_d])
         controller.right += 1.0f;
-    if (keyboard[SDL_SCANCODE_A])
+    if (keyboard[SDLK_a])
         controller.right -= 1.0f;
-    if (keyboard[SDL_SCANCODE_SPACE])
+    if (keyboard[SDLK_SPACE])
         controller.jump = true;
 
-    if (keyboard[SDL_SCANCODE_COMMA]) {
+    if (keyboard[SDLK_COMMA]) {
         SCR_DETAIL--;
         needsResUpdate = true;
     }
-    if (keyboard[SDL_SCANCODE_PERIOD]) {
+    if (keyboard[SDLK_PERIOD]) {
         SCR_DETAIL++;
         needsResUpdate = true;
     }
@@ -525,7 +521,7 @@ void initTexture(GLuint* texture, const int width, const int height) {
 }
 
 // TODO maybe use _start: https://int21.de/linux4k/
-int main(const int argc, const char** argv)
+int main()
 {
     prints("Initializing SDL... ");
     // uhh I guess we don't need to SDL_Init??
@@ -533,36 +529,22 @@ int main(const int argc, const char** argv)
 
     prints("Creating window... ");
 
+    SDL_SetVideoMode(WINDOW_WIDTH, WINDOW_HEIGHT, 0, SDL_OPENGL); // TODO SDL_FULLSCREEN?
+    SDL_ShowCursor(SDL_DISABLE);
+
     // Request an OpenGL 4.3 context (should be core)
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1); // TODO what is this?
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    /*SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);*/
 
 #ifdef __APPLE__
-    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE ); // add on Mac bc Apple is big dumb :(
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE); // add on Mac bc Apple is big dumb :(
 #endif
-    
-    SDL_Window* window = SDL_CreateWindow("Minecraft4k", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                                                            WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
-
-    SDL_SetWindowResizable(window, SDL_TRUE);
-                
-    if(!window)
-    {
-        prints("Failed to create window!\n");
-        return -1;
-    }
     prints("Done!\n");
 
-    SDL_ShowCursor(SDL_FALSE);
 
     prints("Setting OpenGL context... ");
-    mainContext = SDL_GL_CreateContext(window);
-    if(!mainContext)
-    {
-        prints("Failed to create OpenGL context!\n");
-        return -1;
-    }
+    
     
     prints("Done!\n");
 
@@ -570,8 +552,8 @@ int main(const int argc, const char** argv)
     gladLoadGLLoader(SDL_GL_GetProcAddress);
     prints("Done!\n");
 
-    // enable vsync so we don't run at about a kjghpillion fps
-    SDL_GL_SetSwapInterval(1);
+    // TODO enable vsync so we don't run at about a kjghpillion fps
+    //SDL_GL_SetSwapState(1);
 
     prints("Configuring OpenGL... ");
 
@@ -613,7 +595,7 @@ int main(const int argc, const char** argv)
     init();
     prints("Finished initializing engine! Running the game...\n");
 
-    run(window);
+    run();
 
     SDL_ShowCursor(SDL_TRUE);
 }

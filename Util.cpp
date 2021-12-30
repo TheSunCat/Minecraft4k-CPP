@@ -1,14 +1,13 @@
 #include "Util.h"
 
-#include <chrono>
-#include <cmath>
+#include <SDL/SDL.h>
 
 float currentTime()
 {
     static bool firstCall = true;
     static long long startTime;
 
-    long long curTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    long long curTime = SDL_GetTicks();
 
     if(firstCall)
     {
@@ -20,7 +19,7 @@ float currentTime()
 }
 
 uint64_t Random::seedUniquifier = 8682522807148012;
-Random::Random() : seed(uniqueSeed() ^ uint64_t(currentTime())) {}
+Random::Random() : seed(uniqueSeed() ^ uint64_t(currentTime)) {}
 Random::Random(const uint64_t seed) : seed(initialScramble(seed)) {}
 
 uint64_t Random::initialScramble(const uint64_t seed)
@@ -222,15 +221,6 @@ void GLAPIENTRY error_callback(GLenum source,
     //__debugbreak();
 }
 
-vec3 rotToVec3(const float yaw, const float pitch)
-{
-    vec3 ret;
-    ret.x = cos(radians(yaw)) * (pitch == 0 ? 1 : cos(radians(pitch)));
-    ret.y = pitch == 0 ? 0 : sin(radians(pitch));
-    ret.z = sin(radians(yaw)) * (pitch == 0 ? 1 : cos(radians(pitch)));
-    return ret.normalized();
-}
-
 float radians(float deg)
 {
     return deg * (PI / 180.f);
@@ -241,6 +231,11 @@ float degrees(float rad)
     return rad / (PI / 180.f);
 }
 
+/*float abs(float v)
+{
+    return v < 0 ? -v : v;
+}*/
+
 bool sign(float v)
 {
     return (0 < v) - (v < 0);
@@ -248,26 +243,116 @@ bool sign(float v)
 
 float fract(float v)
 {
-    return abs(v - int(v));
+    return v - floor(v);
 }
 
-float maxf(float a, float b)
+float floor(float x)
+{
+    float xcopy=x<0?x*-1:x;
+    unsigned int zeros=0;
+    float n=1;
+    for(n=1;xcopy>n*10;n*=10,++zeros);
+    for(xcopy-=n;zeros!=-1;xcopy-=n)
+    {
+        if(xcopy<0)
+        {
+            xcopy+=n;
+            n/=10;
+            --zeros;
+        }
+    }
+
+    xcopy+=n;
+
+    return x<0?(xcopy==0?x:x-(1-xcopy)):(x-xcopy);
+}
+
+// from Quake FISR
+float sqrt(float v)
+{
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5F;
+
+    x2 = v * 0.5F;
+    y  = v;
+    i  = * ( long * ) &y;                       // evil floating point bit level hacking
+    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
+    y  = * ( float * ) &i;
+    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
+//  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
+
+    return 1/y;
+}
+
+float pow(float v, int p)
+{
+    for(int i = 0; i < p; i++)
+        v *= v;
+    
+    return v;
+}
+
+float cos(float x)
+{
+    constexpr float tp = 1./(2.*PI);
+    x *= tp;
+    x -= .25f + floor(x + .25f);
+    x *= 16.f * (abs(x) - .5f);
+    #if EXTRA_PRECISION
+    x += T(.225f) * x * (abs(x) - 1.f);
+    #endif
+    return x;
+}
+
+float sin(float x)
+{
+    return cos(PI/2 - x);
+}
+
+float max(float a, float b)
 {
     return a > b ? a : b;
+}
+
+float mod(float x, float y) {
+  return x - trunc(x / y) * y;
+}
+
+float trunc(float v)
+{
+    return v < 0 ? floor(-v) : floor(v);
+}
+
+#include "costable_0_01.h"
+
+#define lerp(w, v1, v2) ((1.0 - (w)) * (v1) + (w) * (v2))
+double cos(double x)
+{
+    x = abs(x);
+    x = mod(x, 2*PI);
+    double i = x * 100.0;
+    int index = (int)i;
+    return lerp(i - index,        /* weight      */
+        costable_0_01[index],     /* lower value */
+        costable_0_01[index + 1]  /* upper value */
+        );
 }
 
 vec3 max(const vec3& a, const vec3& b)
 {
     return vec3(
-        maxf(a.x, b.x),
-        maxf(a.y, b.y),
-        maxf(a.z, b.z)
+        max(a.x, b.x),
+        max(a.y, b.y),
+        max(a.z, b.z)
     );
 }
 
-float roundFloat(float v)
+
+// NOTE: broken for negatives (doesn't matter for terrain height)
+int roundFloat(float v)
 {
-    return floor(v + 0.5f);
+    return int(v + 0.5f);
 }
 
 unsigned int murmurHash2(const char* str, int len)
@@ -318,6 +403,45 @@ unsigned int murmurHash2(const char* str, int len)
 
     return h;
 }
+/*
+unsigned long strlen(const char *str)
+{
+    const char *s;
+    for (s = str; *s; ++s);
+
+    return (s - str);
+}
+
+char *strcpy(char *strDest, const char *strSrc)
+{
+    char *temp = strDest;
+    while(*strDest++ = *strSrc++);
+
+    return temp;
+}
+
+char *strcat(char *dest, const char *src)
+{
+    char *rdest = dest;
+
+    while (*dest)
+        dest++;
+    
+    while (*dest++ = *src++);
+
+    return rdest;
+}*/
+
+void memcpy(void *dest, void *src, long unsigned int n)
+{
+   // Typecast src and dest addresses to (char *)
+   char *csrc = (char *)src;
+   char *cdest = (char *)dest;
+  
+   // Copy contents of src[] to dest[]
+   for (int i=0; i<n; i++)
+       cdest[i] = csrc[i];
+}
 
 void reverse(char s[])
 {
@@ -367,7 +491,7 @@ void crash()
 #else
 void crash()
 {
-    exit(0);
+    SDL_Quit();
 }
 
 #endif

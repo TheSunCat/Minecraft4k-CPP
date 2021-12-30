@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0 FATAL_ERROR)
 
 project(Minecraft4k C CXX)
 
-include_directories(include build)
+include_directories(include)
 
 set(PROJECT_NAME Minecraft4k)
 
@@ -24,13 +24,13 @@ set(Resource_Files
 source_group("Resource Files" FILES ${Resource_Files})
 
 set(Source_Files
-    "glad.c"
     "Minecraft4k.cpp"
     "Shader.cpp"
     "TextureGenerator.cpp"
     "Util.cpp"
     "World.cpp"
     "Vector.cpp"
+    "glad.c"
 )
 source_group("Source Files" FILES ${Source_Files})
 
@@ -40,7 +40,11 @@ set(ALL_FILES
     ${Source_Files}
 )
 
-find_package(SDL2 REQUIRED)
+# Don't link stdlib
+set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
+
+find_package(SDL REQUIRED)
 
 add_executable(${PROJECT_NAME} ${ALL_FILES})
 set(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
@@ -58,16 +62,16 @@ if(UNIX)
     #    target_compile_options(${PROJECT_NAME} PRIVATE -g -DDEBUG) 
 
     # TODO -m32, use C libs 
-    target_compile_options(${PROJECT_NAME} PRIVATE
-        -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -Wl,--gc-sections
-        -fno-math-errno -fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387
+    target_compile_options(${PROJECT_NAME} PRIVATE -DSDL_stdinc_h_
+        -Os -s -fno-rtti -fno-stack-protector -ffunction-sections -fdata-sections -fno-math-errno
+	-fno-unroll-loops -fmerge-all-constants -fno-ident -mfpmath=387 -mfancy-math-387 #-e _start
         -fsingle-precision-constant -ffast-math -fno-exceptions -nostartfiles -nostdlib -nodefaultlibs
        	-fcf-protection=none -N -fno-align-functions -fomit-frame-pointer -fno-threadsafe-statics
         -finline-limit=10 -fno-asynchronous-unwind-tables
     )
 
     target_link_options(${PROJECT_NAME} PRIVATE
-        -Wl,--hash-style=gnu,--build-id=none,-z,max-page-size=2048
+        -Wl,--hash-style=gnu,--build-id=none,--gc-sections#,-z,max-page-size=2048#,-e,_start
     )
 
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -118,7 +122,7 @@ set(ADDITIONAL_LIBRARY_DEPENDENCIES
 )
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" ${SDL2_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE "${ADDITIONAL_LIBRARY_DEPENDENCIES} ${SDL_LIBRARY}")
 
 link_directories(${PROJECT_NAME} PRIVATE
     "lib"
