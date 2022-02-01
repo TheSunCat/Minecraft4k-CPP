@@ -1,4 +1,5 @@
 #include "Util.h"
+#include <cmath>
 
 #include <SDL/SDL.h>
 
@@ -246,68 +247,12 @@ float fract(float v)
     return v - floor(v);
 }
 
-float floor(float x)
-{
-    float xcopy=x<0?x*-1:x;
-    unsigned int zeros=0;
-    float n=1;
-    for(n=1;xcopy>n*10;n*=10,++zeros);
-    for(xcopy-=n;zeros!=-1;xcopy-=n)
-    {
-        if(xcopy<0)
-        {
-            xcopy+=n;
-            n/=10;
-            --zeros;
-        }
-    }
-
-    xcopy+=n;
-
-    return x<0?(xcopy==0?x:x-(1-xcopy)):(x-xcopy);
-}
-
-// from Quake FISR
-float sqrt(float v)
-{
-    long i;
-    float x2, y;
-    const float threehalfs = 1.5F;
-
-    x2 = v * 0.5F;
-    y  = v;
-    i  = * ( long * ) &y;                       // evil floating point bit level hacking
-    i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
-    y  = * ( float * ) &i;
-    y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
-//  y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
-
-    return 1/y;
-}
-
 float pow(float v, int p)
 {
     for(int i = 0; i < p; i++)
         v *= v;
     
     return v;
-}
-
-float cos(float x)
-{
-    constexpr float tp = 1./(2.*PI);
-    x *= tp;
-    x -= .25f + floor(x + .25f);
-    x *= 16.f * (abs(x) - .5f);
-    #if EXTRA_PRECISION
-    x += T(.225f) * x * (abs(x) - 1.f);
-    #endif
-    return x;
-}
-
-float sin(float x)
-{
-    return cos(PI/2 - x);
 }
 
 float max(float a, float b)
@@ -317,26 +262,6 @@ float max(float a, float b)
 
 float mod(float x, float y) {
   return x - trunc(x / y) * y;
-}
-
-float trunc(float v)
-{
-    return v < 0 ? floor(-v) : floor(v);
-}
-
-#include "costable_0_01.h"
-
-#define lerp(w, v1, v2) ((1.0 - (w)) * (v1) + (w) * (v2))
-double cos(double x)
-{
-    x = abs(x);
-    x = mod(x, 2*PI);
-    double i = x * 100.0;
-    int index = (int)i;
-    return lerp(i - index,        /* weight      */
-        costable_0_01[index],     /* lower value */
-        costable_0_01[index + 1]  /* upper value */
-        );
 }
 
 vec3 max(const vec3& a, const vec3& b)

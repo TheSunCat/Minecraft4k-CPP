@@ -1,5 +1,5 @@
 #include "Vector.h"
-#include <SDL/SDL.h> // for abs
+#include <cmath>
 
 #include "Util.h"
 

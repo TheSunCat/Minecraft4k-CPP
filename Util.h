@@ -74,14 +74,8 @@ int roundFloat(float v);
 //float abs(float v);
 bool sign(float v);
 float fract(float v);
-float floor(float x);
-float sqrt(float v);
 float pow(float v, int p);
 float mod(float v, float d);
-float trunc(float v);
-
-float cos(float x);
-float sin(float x);
 
 vec3 max(const vec3& a, const vec3& b);
 

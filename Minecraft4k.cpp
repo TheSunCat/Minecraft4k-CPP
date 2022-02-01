@@ -7,6 +7,8 @@
 #include "Util.h"
 #include "World.h"
 
+#include <cmath>
+
 #include "shader_code.h"
 
 struct Controller
