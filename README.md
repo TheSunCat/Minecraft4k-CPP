@@ -1,4 +1,7 @@
 # Minecraft4k-CPP
+<a href="https://liberapay.com/TheSunCat/donate"><img alt="Donate using Liberapay" src="https://liberapay.com/assets/widgets/donate.svg"> <img src="https://img.shields.io/liberapay/receives/TheSunCat.svg"></a>
+
+
 Minecraft4k-CPP is a port of the original Minecraft4k-Reversed to C++, so that we are able to leverage both the speed of C++ and mainly the GPU itself for raymarching.<br>
 <br>
 Thus far, it already performs much better than the original game, as long as your GPU is powerful enough (make sure it supports OpenGL 4.3 Core). However, it hasn't been tested very thoroughly in different machines.<br>
